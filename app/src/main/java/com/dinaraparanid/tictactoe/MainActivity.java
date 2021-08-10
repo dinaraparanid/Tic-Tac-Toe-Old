@@ -1,0 +1,28 @@
+package com.dinaraparanid.tictactoe;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.databinding.BaseObservable;
+import androidx.databinding.Bindable;
+import androidx.databinding.DataBindingUtil;
+import androidx.databinding.Observable;
+
+import android.os.Bundle;
+
+import com.dinaraparanid.tictactoe.databinding.ActivityMainBinding;
+import com.dinaraparanid.tictactoe.fragments.SelectGameTypeFragment;
+import com.dinaraparanid.tictactoe.viewmodels.MainActivityViewModel;
+
+public final class MainActivity extends AppCompatActivity {
+
+    @Override
+    protected final void onCreate(@Nullable final Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        final ActivityMainBinding binding = DataBindingUtil
+                .setContentView(this, R.layout.activity_main);
+
+        binding.setMainActivityViewModel(new MainActivityViewModel(this));
+        binding.executePendingBindings();
+    }
+}
