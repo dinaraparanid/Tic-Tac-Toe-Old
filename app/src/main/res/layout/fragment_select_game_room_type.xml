@@ -4,8 +4,8 @@
 
     <data>
         <variable
-            name="select_game_type_view_model"
-            type="com.dinaraparanid.tictactoe.viewmodels.SelectGameTypeViewModel" />
+            name="select_game_room_view_model"
+            type="com.dinaraparanid.tictactoe.viewmodels.SelectGameRoomViewModel" />
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -14,7 +14,7 @@
         android:background="@drawable/app_background">
 
         <carbon.widget.Button
-            android:id="@+id/singleplayer_game"
+            android:id="@+id/new_room"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="150dp"
@@ -26,14 +26,14 @@
             android:scrollbarThumbVertical="@null"
             android:scrollbarTrackHorizontal="@null"
             android:scrollbarTrackVertical="@null"
-            android:text="@string/singleplayer"
+            android:text="@string/create_new_room"
             android:textAllCaps="false"
             android:textColor="@color/red_dinaraparanid"
             android:textColorHighlight="@null"
             android:textColorHint="@null"
             android:textColorLink="@null"
             android:textCursorDrawable="@null"
-            android:textSize="60sp"
+            android:textSize="50sp"
             app:carbon_cornerRadius="10dp"
             app:carbon_elevation="0dp"
             app:carbon_font="@font/pristina"
@@ -47,7 +47,7 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <carbon.widget.Button
-            android:id="@+id/multiplayer_game"
+            android:id="@+id/connect_to_existing_room"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="150dp"
@@ -59,15 +59,14 @@
             android:scrollbarThumbVertical="@null"
             android:scrollbarTrackHorizontal="@null"
             android:scrollbarTrackVertical="@null"
-            android:text="@string/multiplayer"
+            android:text="@string/connect_to_existing_room"
             android:textAllCaps="false"
             android:textColor="@color/red_dinaraparanid"
             android:textColorHighlight="@null"
             android:textColorHint="@null"
             android:textColorLink="@null"
             android:textCursorDrawable="@null"
-            android:textSize="60sp"
-            android:onClick="@{() -> select_game_type_view_model.showSelectGameRoomTypeFragment()}"
+            android:textSize="50sp"
             app:carbon_cornerRadius="10dp"
             app:carbon_elevation="0dp"
             app:carbon_font="@font/pristina"

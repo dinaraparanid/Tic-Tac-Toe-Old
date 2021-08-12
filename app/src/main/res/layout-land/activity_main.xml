@@ -1,23 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <data>
         <variable
-            name="select_game_type_view_model"
-            type="com.dinaraparanid.tictactoe.viewmodels.SelectGameTypeViewModel" />
+            name="main_activity_view_model"
+            type="com.dinaraparanid.tictactoe.viewmodels.MainActivityViewModel" />
+
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/app_background">
+        android:background="@drawable/app_background"
+        android:scrollbarThumbHorizontal="@null"
+        android:scrollbarThumbVertical="@null"
+        android:scrollbarTrackHorizontal="@null"
+        android:scrollbarTrackVertical="@null"
+        tools:context=".MainActivity">
 
-        <carbon.widget.Button
-            android:id="@+id/singleplayer_game"
+        <carbon.widget.TextView
+            android:id="@+id/app_main_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="150dp"
+            android:layout_marginTop="50dp"
+            android:fontFamily="@font/pristina"
+            android:gravity="center"
+            android:scrollbarThumbHorizontal="@null"
+            android:scrollbarThumbVertical="@null"
+            android:scrollbarTrackHorizontal="@null"
+            android:scrollbarTrackVertical="@null"
+            android:text="@string/app_name"
+            android:textColor="@color/red_dinaraparanid"
+            android:textColorHighlight="@null"
+            android:textColorHint="@null"
+            android:textColorLink="@null"
+            android:textCursorDrawable="@null"
+            android:textSize="80sp"
+            app:carbon_font="@font/pristina"
+            app:carbon_fontFamily="@font/pristina"
+            app:carbon_rippleColor="@color/red_dinaraparanid"
+            app:carbon_rippleStyle="over"
+            app:carbon_tint="@color/red_dinaraparanid"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <carbon.widget.Button
+            android:id="@+id/play_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:background="@android:color/transparent"
             android:clickable="true"
             android:focusable="true"
@@ -26,7 +59,7 @@
             android:scrollbarThumbVertical="@null"
             android:scrollbarTrackHorizontal="@null"
             android:scrollbarTrackVertical="@null"
-            android:text="@string/singleplayer"
+            android:text="@string/play"
             android:textAllCaps="false"
             android:textColor="@color/red_dinaraparanid"
             android:textColorHighlight="@null"
@@ -34,6 +67,7 @@
             android:textColorLink="@null"
             android:textCursorDrawable="@null"
             android:textSize="60sp"
+            android:onClick="@{() -> main_activity_view_model.showSelectGameTypeFragment()}"
             app:carbon_cornerRadius="10dp"
             app:carbon_elevation="0dp"
             app:carbon_font="@font/pristina"
@@ -46,38 +80,19 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <carbon.widget.Button
-            android:id="@+id/multiplayer_game"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="150dp"
-            android:background="@android:color/transparent"
-            android:clickable="true"
-            android:focusable="true"
-            android:fontFamily="@font/pristina"
+        <FrameLayout
+            android:id="@+id/fragment_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:scrollbarThumbHorizontal="@null"
             android:scrollbarThumbVertical="@null"
-            android:scrollbarTrackHorizontal="@null"
             android:scrollbarTrackVertical="@null"
-            android:text="@string/multiplayer"
-            android:textAllCaps="false"
-            android:textColor="@color/red_dinaraparanid"
-            android:textColorHighlight="@null"
-            android:textColorHint="@null"
-            android:textColorLink="@null"
-            android:textCursorDrawable="@null"
-            android:textSize="60sp"
-            android:onClick="@{() -> select_game_type_view_model.showSelectGameRoomTypeFragment()}"
-            app:carbon_cornerRadius="10dp"
-            app:carbon_elevation="0dp"
-            app:carbon_font="@font/pristina"
-            app:carbon_fontFamily="@font/pristina"
-            app:carbon_rippleColor="@color/red_dinaraparanid"
-            app:carbon_rippleStyle="over"
-            app:carbon_tint="@color/red_dinaraparanid"
+            android:visibility="visible"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            tools:context=".MainActivity" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 </layout>

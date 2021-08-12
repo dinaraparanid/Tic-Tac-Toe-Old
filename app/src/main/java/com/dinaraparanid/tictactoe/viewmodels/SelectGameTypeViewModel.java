@@ -5,21 +5,24 @@ import androidx.databinding.BaseObservable;
 
 import com.dinaraparanid.tictactoe.MainActivity;
 import com.dinaraparanid.tictactoe.R;
+import com.dinaraparanid.tictactoe.fragments.SelectGameRoomTypeFragment;
 import com.dinaraparanid.tictactoe.fragments.SelectGameTypeFragment;
 
-public final class MainActivityViewModel extends BaseObservable {
+public final class SelectGameTypeViewModel extends BaseObservable {
 
     @NonNull
-    private final MainActivity activity;
+    public final MainActivity activity;
 
-    public MainActivityViewModel(@NonNull final MainActivity activity) { this.activity = activity; }
+    public SelectGameTypeViewModel(@NonNull final MainActivity activity) {
+        this.activity = activity;
+    }
 
-    public final void showSelectGameTypeFragment() {
+    public final void showSelectGameRoomTypeFragment() {
         activity.getSupportFragmentManager()
                 .beginTransaction()
                 .replace(
                         R.id.fragment_container,
-                        SelectGameTypeFragment.newInstance()
+                        SelectGameRoomTypeFragment.newInstance()
                 )
                 .addToBackStack(null)
                 .commit();

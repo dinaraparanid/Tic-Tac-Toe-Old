@@ -67,7 +67,7 @@
             android:textColorLink="@null"
             android:textCursorDrawable="@null"
             android:textSize="60sp"
-            android:onClick="@{() -> main_activity_view_model.showGameTypeFragment()}"
+            android:onClick="@{() -> main_activity_view_model.showSelectGameTypeFragment()}"
             app:carbon_cornerRadius="10dp"
             app:carbon_elevation="0dp"
             app:carbon_font="@font/pristina"
@@ -84,11 +84,14 @@
             android:id="@+id/fragment_container"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_marginTop="?attr/actionBarSize"
             android:scrollbarThumbHorizontal="@null"
             android:scrollbarThumbVertical="@null"
             android:scrollbarTrackVertical="@null"
             android:visibility="visible"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             tools:context=".MainActivity" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

@@ -7,20 +7,24 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.databinding.DataBindingUtil;
 import androidx.fragment.app.Fragment;
 
+import com.dinaraparanid.tictactoe.MainActivity;
 import com.dinaraparanid.tictactoe.R;
+import com.dinaraparanid.tictactoe.databinding.FragmentSelectGameTypeBinding;
+import com.dinaraparanid.tictactoe.utils.polymorphism.DataBindingFragment;
+import com.dinaraparanid.tictactoe.viewmodels.SelectGameTypeViewModel;
 
 import org.jetbrains.annotations.Contract;
 
 import carbon.widget.Button;
 
-public final class SelectGameTypeFragment extends Fragment {
-    @NonNull
-    public Button singlePlayer;
+public final class SelectGameTypeFragment
+        extends DataBindingFragment<FragmentSelectGameTypeBinding> {
 
-    @NonNull
-    public Button multiPlayer;
+    @Nullable
+    private FragmentSelectGameTypeBinding binding;
 
     @NonNull
     @Contract(" -> new")
@@ -28,21 +32,20 @@ public final class SelectGameTypeFragment extends Fragment {
         return new SelectGameTypeFragment();
     }
 
-    @Override
-    public final void onCreate(@Nullable final Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-    }
-
-    @Nullable
+    @NonNull
     @Override
     public final View onCreateView(
             @NonNull final LayoutInflater inflater,
             @Nullable final ViewGroup container,
             @Nullable final Bundle savedInstanceState
     ) {
-        final View view = inflater.inflate(R.layout.fragment_select_game_type, container, false);
-        singlePlayer = view.findViewById(R.id.singleplayer_game);
-        multiPlayer = view.findViewById(R.id.multiplayer_game);
-        return view;
+        binding = DataBindingUtil
+                .inflate(inflater, R.layout.fragment_select_game_type, container, false);
+
+        binding.setSelectGameTypeViewModel(
+                new SelectGameTypeViewModel((MainActivity) requireActivity())
+        );
+
+        return binding.getRoot();
     }
 }
