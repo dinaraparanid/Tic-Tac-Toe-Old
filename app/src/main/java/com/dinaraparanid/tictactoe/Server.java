@@ -11,6 +11,7 @@ import android.os.IBinder;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.dinaraparanid.tictactoe.utils.Coordinate;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 
 import java.io.IOException;
@@ -20,26 +21,26 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.stream.Stream;
 
 public final class Server extends Service {
     private static final int PORT = 1337;
     private static final String HOST_NAME = "127.0.0.1";
     private static final State[] states = {};
 
-    static final String BROADCAST_CREATE_ROOM = "create_room";
+    static final String BROADCAST_CREATE_GAME = "create_game";
     static final String BROADCAST_CANCEL_GAME = "cancel_game";
-    static final String BROADCAST_SECOND_PLAYER_CONNECTED = "second_player_connected";
     static final String BROADCAST_FIRST_PLAYER_MOVED = "first_player_moved";
     static final String BROADCAST_FIRST_PLAYER_DISCONNECTED = "first_player_disconnected";
 
     final class LocalBinder extends Binder {
         @NonNull
-        public final Server getServer() {
-            return Server.this;
-        }
+        public final Server getServer() { return Server.this; }
     }
 
+    @NonNull
     private final IBinder iBinder = new LocalBinder();
 
     @NonNull
@@ -49,10 +50,10 @@ public final class Server extends Service {
     private final Selector selector;
 
     @NonNull
-    private final BroadcastReceiver createRoomReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver createGameReceiver = new BroadcastReceiver() {
         @Override
         public final void onReceive(@NonNull final Context context, @Nullable final Intent intent) {
-            // TODO: create room
+            // TODO: create game
         }
     };
 
@@ -65,18 +66,18 @@ public final class Server extends Service {
     };
 
     @NonNull
-    private final BroadcastReceiver secondPlayerConnectedReceiver = new BroadcastReceiver() {
-        @Override
-        public final void onReceive(@NonNull final Context context, @Nullable final Intent intent) {
-            // TODO: show 2-nd player connected
-        }
-    };
-
-    @NonNull
     private final BroadcastReceiver firstPlayerMovedReceiver = new BroadcastReceiver() {
         @Override
-        public final void onReceive(@NonNull final Context context, @Nullable final Intent intent) {
-            // TODO: handle 1-st player move
+        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            final Coordinate coordinate = (Coordinate) intent
+                    .getSerializableExtra(ServerPlayer.COORDINATE_KEY);
+
+            if (checkMovement((byte) 0, coordinate)) {
+                desk[coordinate.getY()][coordinate.getX()] = 1;
+                turn = (byte) ((turn + 1) % 2);
+            }
+
+            // TODO: send info to players
         }
     };
 
@@ -87,6 +88,10 @@ public final class Server extends Service {
             // TODO: show to second player that first player is disconnected
         }
     };
+
+    private final int deskSize = 3;
+    byte[][] desk = new byte[deskSize][deskSize]; // 0 -> null, 1 -> x, 2 -> 0
+    byte turn = 0;
 
     public Server() throws IOException {
         server = ServerSocketChannel.open();
@@ -99,16 +104,13 @@ public final class Server extends Service {
 
     @NonNull
     @Override
-    public final IBinder onBind(@Nullable final Intent intent) {
-        return iBinder;
-    }
+    public final IBinder onBind(@Nullable final Intent intent) { return iBinder; }
 
     @Override
     public final void onCreate() {
         super.onCreate();
-        registerCreateRoomReceiver();
+        registerCreateGameReceiver();
         registerCancelGameReceiver();
-        registerSecondPlayerConnectedReceiver();
         registerFirstPlayerMoved();
         registerFirstPlayerDisconnected();
     }
@@ -129,31 +131,22 @@ public final class Server extends Service {
     }
 
     @Override
-    public void onDestroy() {
+    public final void onDestroy() {
         super.onDestroy();
-        unregisterReceiver(createRoomReceiver);
+        unregisterReceiver(createGameReceiver);
         unregisterReceiver(cancelGameReceiver);
-        unregisterReceiver(secondPlayerConnectedReceiver);
         unregisterReceiver(firstPlayerMovedReceiver);
         unregisterReceiver(firstPlayerDisconnected);
     }
 
     @NonNull
-    private final Intent registerCreateRoomReceiver() {
-        return registerReceiver(createRoomReceiver, new IntentFilter(BROADCAST_CREATE_ROOM));
+    private final Intent registerCreateGameReceiver() {
+        return registerReceiver(createGameReceiver, new IntentFilter(BROADCAST_CREATE_GAME));
     }
 
     @NonNull
     private final Intent registerCancelGameReceiver() {
         return registerReceiver(cancelGameReceiver, new IntentFilter(BROADCAST_CANCEL_GAME));
-    }
-
-    @NonNull
-    private final Intent registerSecondPlayerConnectedReceiver() {
-        return registerReceiver(
-                secondPlayerConnectedReceiver,
-                new IntentFilter(BROADCAST_SECOND_PLAYER_CONNECTED)
-        );
     }
 
     @NonNull
@@ -199,5 +192,17 @@ public final class Server extends Service {
                 iter.remove();
             }
         }
+    }
+
+    final boolean checkMovement(final byte player, @NonNull final Coordinate coordinate) {
+        if (turn != player) return false;
+
+        if (coordinate.getX() < 0 ||
+                coordinate.getY() < 0 ||
+                coordinate.getX() >= deskSize ||
+                coordinate.getY() >= deskSize
+        ) return false;
+
+        return desk[coordinate.getY()][coordinate.getX()] != 0;
     }
 }
