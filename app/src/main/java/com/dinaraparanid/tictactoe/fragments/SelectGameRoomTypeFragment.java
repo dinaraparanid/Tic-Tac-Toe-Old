@@ -14,13 +14,10 @@ import com.dinaraparanid.tictactoe.databinding.FragmentSelectGameRoomTypeBinding
 import com.dinaraparanid.tictactoe.utils.polymorphism.DataBindingFragment;
 import com.dinaraparanid.tictactoe.viewmodels.SelectGameRoomViewModel;
 
-import org.jetbrains.annotations.Contract;
-
 public final class SelectGameRoomTypeFragment
         extends DataBindingFragment<FragmentSelectGameRoomTypeBinding> {
 
     @NonNull
-    @Contract(" -> new")
     public static final SelectGameRoomTypeFragment newInstance() {
         return new SelectGameRoomTypeFragment();
     }

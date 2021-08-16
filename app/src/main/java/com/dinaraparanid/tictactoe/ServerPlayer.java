@@ -1,7 +1,9 @@
 package com.dinaraparanid.tictactoe;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
@@ -10,13 +12,108 @@ import com.dinaraparanid.tictactoe.utils.Coordinate;
 
 public final class ServerPlayer {
 
-    public static final String COORDINATE_KEY = "coordinate_key";
+    static final String COORDINATE_KEY = "coordinate_key";
 
-    private final MainApplication application;
+    @NonNull
+    final MainApplication application;
 
-    public ServerPlayer(@NonNull final MainApplication application) {
+    @NonNull
+    final MainActivity activity;
+
+    public ServerPlayer(
+            @NonNull final MainApplication application,
+            @NonNull final MainActivity activity
+    ) {
         this.application = application;
+        this.activity = activity;
         sendReady();
+    }
+
+    @NonNull
+    private final BroadcastReceiver noPlayerFoundReceiver = new BroadcastReceiver() {
+        @Override
+        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            if (intent.getAction().equals(Server.BROADCAST_NO_PLAYER_FOUND)) {
+                activity.sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
+                // TODO: Tell that player is not found
+            }
+        }
+    };
+
+    @NonNull
+    private final BroadcastReceiver playerFoundReceiver = new BroadcastReceiver() {
+        @Override
+        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            if (intent.getAction().equals(Server.BROADCAST_PLAYER_FOUND)) {
+                // TODO: Show that game is started
+            }
+        }
+    };
+
+    @NonNull
+    private final BroadcastReceiver secondPlayerMovedReceiver = new BroadcastReceiver() {
+        @Override
+        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            if (intent.getAction().equals(Server.BROADCAST_SECOND_PLAYER_MOVED)) {
+                // TODO: Update table, start move
+            }
+        }
+    };
+
+    @NonNull
+    private final BroadcastReceiver gameFinishedReceiver = new BroadcastReceiver() {
+        @Override
+        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            if (intent.getAction().equals(Server.BROADCAST_GAME_FINISHED)) {
+                // TODO: Show results, kill server
+            }
+        }
+    };
+
+    @NonNull
+    private final Intent registerNoPlayerFoundReceiver() {
+        return activity.registerReceiver(
+                noPlayerFoundReceiver,
+                new IntentFilter(Server.BROADCAST_NO_PLAYER_FOUND)
+        );
+    }
+
+    @NonNull
+    private final Intent registerPlayerFoundReceiver() {
+        return activity.registerReceiver(
+                playerFoundReceiver,
+                new IntentFilter(Server.BROADCAST_PLAYER_FOUND)
+        );
+    }
+
+    @NonNull
+    private final Intent registerSecondPlayerMovedReceiver() {
+        return activity.registerReceiver(
+                secondPlayerMovedReceiver,
+                new IntentFilter(Server.BROADCAST_SECOND_PLAYER_MOVED)
+        );
+    }
+
+    @NonNull
+    private final Intent registerGameFinishedReceiver() {
+        return activity.registerReceiver(
+                gameFinishedReceiver,
+                new IntentFilter(Server.BROADCAST_GAME_FINISHED)
+        );
+    }
+
+    final void registerReceivers() {
+        registerNoPlayerFoundReceiver();
+        registerPlayerFoundReceiver();
+        registerSecondPlayerMovedReceiver();
+        registerGameFinishedReceiver();
+    }
+
+    final void unregisterReceivers() {
+        activity.unregisterReceiver(noPlayerFoundReceiver);
+        activity.unregisterReceiver(playerFoundReceiver);
+        activity.unregisterReceiver(secondPlayerMovedReceiver);
+        activity.unregisterReceiver(gameFinishedReceiver);
     }
 
     private final void sendReady() {
