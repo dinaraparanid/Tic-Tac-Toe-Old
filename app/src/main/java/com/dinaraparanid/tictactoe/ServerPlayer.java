@@ -9,8 +9,9 @@ import android.os.Build;
 import androidx.annotation.NonNull;
 
 import com.dinaraparanid.tictactoe.utils.Coordinate;
+import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 
-public final class ServerPlayer {
+public final class ServerPlayer extends Player {
 
     static final String COORDINATE_KEY = "coordinate_key";
 
@@ -19,6 +20,8 @@ public final class ServerPlayer {
 
     @NonNull
     final MainActivity activity;
+
+    byte role;
 
     public ServerPlayer(
             @NonNull final MainApplication application,
@@ -46,6 +49,17 @@ public final class ServerPlayer {
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(Server.BROADCAST_PLAYER_FOUND)) {
                 // TODO: Show that game is started
+            }
+        }
+    };
+
+    @NonNull
+    private final BroadcastReceiver getRoleReceiver = new BroadcastReceiver() {
+        @Override
+        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            if (intent.getAction().equals(Server.BROADCAST_ROLE)) {
+                role = intent.getByteExtra(Server.BROADCAST_GET_ROLE, (byte) 0);
+                showRole(activity);
             }
         }
     };

@@ -1,7 +1,10 @@
 package com.dinaraparanid.tictactoe;
 
+import android.content.Context;
+
 import androidx.annotation.NonNull;
 
+import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 
 import java.io.IOException;
@@ -9,7 +12,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
-public final class ClientPlayer {
+public final class ClientPlayer extends Player {
     private static final int PORT = 1337;
     private static final byte NO_COMMAND = 0;
     static final byte SHOW_ROLE_COMMAND = 1;
@@ -20,6 +23,11 @@ public final class ClientPlayer {
     @NonNull
     private final SocketChannel client;
 
+    private byte role;
+
+    @NonNull
+    final Context context;
+
     @NonNull
     private final State[] states = {
             new ShowRoleState(),
@@ -28,7 +36,8 @@ public final class ClientPlayer {
             new GameFinishedState()
     };
 
-    public ClientPlayer() throws IOException {
+    public ClientPlayer(@NonNull final Context context) throws IOException {
+        this.context = context;
         client = SocketChannel.open();
         client.connect(new InetSocketAddress("127.0.0.1", PORT));
 
@@ -36,12 +45,15 @@ public final class ClientPlayer {
         sayHelloBuffer.put(Server.PLAYER_IS_FOUND);
         sayHelloBuffer.flip();
         client.write(sayHelloBuffer);
-        runBFSM();
+        run();
     }
 
     private class ShowRoleState extends State {
         ShowRoleState() {
-            super(() -> {}); // TODO: Show role
+            super(() -> {
+                setRole();
+                showRole(context);
+            });
         }
     }
 
@@ -63,7 +75,7 @@ public final class ClientPlayer {
         }
     }
 
-    private final void runBFSM() throws IOException {
+    private final void run() throws IOException {
         byte command = NO_COMMAND;
 
         while (command != COMMAND_GAME_FINISH) {
@@ -76,5 +88,15 @@ public final class ClientPlayer {
         }
 
         client.close();
+    }
+
+    final void setRole() {
+        final ByteBuffer readBuffer = ByteBuffer.allocate(1);
+
+        try { client.read(readBuffer); }
+        catch (final IOException e) { e.printStackTrace(); }
+
+        readBuffer.flip();
+        role = readBuffer.get();
     }
 }

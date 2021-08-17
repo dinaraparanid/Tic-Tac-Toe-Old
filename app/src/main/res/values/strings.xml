@@ -5,4 +5,6 @@
     <string name="multiplayer">Multiplayer</string>
     <string name="create_new_room">Create new room</string>
     <string name="connect_to_existing_room">Connect to existing room</string>
+    <string name="cross_role">You are a cross</string>
+    <string name="zero_role">You are a zero</string>
 </resources>

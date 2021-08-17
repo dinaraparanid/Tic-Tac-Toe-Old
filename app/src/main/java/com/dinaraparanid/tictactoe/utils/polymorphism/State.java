@@ -2,10 +2,10 @@ package com.dinaraparanid.tictactoe.utils.polymorphism;
 
 import androidx.annotation.NonNull;
 
-public abstract class State {
+public class State {
 
     @NonNull
-    protected Runnable action;
+    private Runnable action;
 
     protected State(@NonNull final Runnable action) { this.action = action; }
 

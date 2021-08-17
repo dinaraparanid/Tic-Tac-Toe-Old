@@ -24,17 +24,13 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.WritableByteChannel;
+import java.security.SecureRandom;
 import java.util.Iterator;
 
 public final class Server extends Service {
     private static final int PORT = 1337;
     private static final String HOST_NAME = "127.0.0.1";
-
-    @NonNull
-    private final State[] states = {
-            new SecondPlayerIsFoundState(),
-            new SecondPlayerIsMovedState()
-    };
 
     private final int deskSize = 3;
     byte[][] desk = new byte[deskSize][deskSize]; // 0 -> null, 1 -> x, 2 -> 0
@@ -47,6 +43,12 @@ public final class Server extends Service {
 
     @NonNls
     static final String BROADCAST_CANCEL_GAME = "cancel_game";
+
+    @NonNls
+    static final String BROADCAST_ROLE = "role";
+
+    @NonNls
+    static final String BROADCAST_GET_ROLE = "get_role";
 
     @NonNls
     static final String BROADCAST_FIRST_PLAYER_MOVED = "first_player_moved";
@@ -160,6 +162,12 @@ public final class Server extends Service {
         }
     }
 
+    private class SendRolesState extends State {
+        SendRolesState(@NonNull final SocketChannel client) {
+            super(() -> sendRoles(client));
+        }
+    }
+
     private class SecondPlayerIsMovedState extends State {
         SecondPlayerIsMovedState() {
             // TODO: Second player is moved
@@ -264,6 +272,9 @@ public final class Server extends Service {
     }
 
     private final void runServer() throws IOException {
+        final State secondPlayerIsFoundState = new SecondPlayerIsFoundState();
+        final State secondPlayerIsMovedState = new SecondPlayerIsMovedState();
+
         while (true) {
             selector.select();
             final Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
@@ -283,7 +294,15 @@ public final class Server extends Service {
                         client.close();
                     } else {
                         readerBuffer.flip();
-                        states[readerBuffer.get()].run();
+
+                        switch (readerBuffer.get()) {
+                            case PLAYER_IS_FOUND:
+                                new SendRolesState(client).run();
+                                break;
+
+                            default:
+                                break;
+                        }
                     }
                 }
 
@@ -308,5 +327,28 @@ public final class Server extends Service {
         LocalBroadcastManager
                 .getInstance(getApplicationContext())
                 .sendBroadcast(new Intent(BROADCAST_NO_PLAYER_FOUND));
+    }
+
+    final void sendRoles(@NonNull final WritableByteChannel client) {
+        final byte serverPlayerRole = (byte) new SecureRandom().nextInt(2);
+        final byte clientPlayerRole = (byte) (1 - serverPlayerRole);
+
+        final ByteBuffer buffer = ByteBuffer.allocate(2);
+        buffer.put(ClientPlayer.SHOW_ROLE_COMMAND);
+        buffer.put(clientPlayerRole);
+        buffer.flip();
+
+        try {
+            client.write(buffer);
+        } catch (final IOException e) {
+            e.printStackTrace();
+        }
+
+        LocalBroadcastManager
+                .getInstance(getApplicationContext())
+                .sendBroadcast(
+                        new Intent(BROADCAST_ROLE)
+                                .putExtra(BROADCAST_GET_ROLE, serverPlayerRole)
+                );
     }
 }
