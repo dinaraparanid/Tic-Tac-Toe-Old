@@ -11,9 +11,6 @@ import com.dinaraparanid.tictactoe.viewmodels.MainActivityViewModel;
 
 public final class MainActivity extends AppCompatActivity {
 
-    @Nullable
-    private ServerPlayer player;
-
     @Override
     protected final void onCreate(@Nullable final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -23,13 +20,5 @@ public final class MainActivity extends AppCompatActivity {
 
         binding.setMainActivityViewModel(new MainActivityViewModel(this));
         binding.executePendingBindings();
-
-        player.registerReceivers();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        player.unregisterReceivers();
     }
 }

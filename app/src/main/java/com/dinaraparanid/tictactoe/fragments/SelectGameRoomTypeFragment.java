@@ -9,30 +9,43 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.DataBindingUtil;
 
+import com.dinaraparanid.tictactoe.MainActivity;
+import com.dinaraparanid.tictactoe.MainApplication;
 import com.dinaraparanid.tictactoe.R;
 import com.dinaraparanid.tictactoe.databinding.FragmentSelectGameRoomTypeBinding;
 import com.dinaraparanid.tictactoe.utils.polymorphism.DataBindingFragment;
 import com.dinaraparanid.tictactoe.viewmodels.SelectGameRoomViewModel;
 
+import org.jetbrains.annotations.Contract;
+
 public final class SelectGameRoomTypeFragment
         extends DataBindingFragment<FragmentSelectGameRoomTypeBinding> {
 
     @NonNull
+    @Contract(" -> new")
     public static final SelectGameRoomTypeFragment newInstance() {
         return new SelectGameRoomTypeFragment();
     }
 
     @NonNull
     @Override
-    public View onCreateView(
+    public final View onCreateView(
             @NonNull LayoutInflater inflater,
             @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState
     ) {
-        binding = DataBindingUtil
-                .inflate(inflater, R.layout.fragment_select_game_room_type, container, false);
+        binding = DataBindingUtil.inflate(
+                inflater,
+                R.layout.fragment_select_game_room_type,
+                container,
+                false
+        );
 
-        binding.setSelectGameRoomViewModel(new SelectGameRoomViewModel());
+        final MainActivity act = (MainActivity) requireActivity();
+
+        binding.setViewModel(
+                new SelectGameRoomViewModel(act, (MainApplication) act.getApplication())
+        );
 
         return binding.getRoot();
     }

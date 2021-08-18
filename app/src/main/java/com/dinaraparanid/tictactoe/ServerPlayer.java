@@ -1,5 +1,6 @@
 package com.dinaraparanid.tictactoe;
 
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -8,20 +9,20 @@ import android.os.Build;
 
 import androidx.annotation.NonNull;
 
+import com.dinaraparanid.tictactoe.fragments.GameFragment;
 import com.dinaraparanid.tictactoe.utils.Coordinate;
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 
+import org.jetbrains.annotations.NonNls;
+
 public final class ServerPlayer extends Player {
 
+    @NonNls
+    @NonNull
     static final String COORDINATE_KEY = "coordinate_key";
 
     @NonNull
     final MainApplication application;
-
-    @NonNull
-    final MainActivity activity;
-
-    byte role;
 
     public ServerPlayer(
             @NonNull final MainApplication application,
@@ -29,7 +30,6 @@ public final class ServerPlayer extends Player {
     ) {
         this.application = application;
         this.activity = activity;
-        sendReady();
     }
 
     @NonNull
@@ -38,17 +38,13 @@ public final class ServerPlayer extends Player {
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(Server.BROADCAST_NO_PLAYER_FOUND)) {
                 activity.sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
-                // TODO: Tell that player is not found
-            }
-        }
-    };
 
-    @NonNull
-    private final BroadcastReceiver playerFoundReceiver = new BroadcastReceiver() {
-        @Override
-        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(Server.BROADCAST_PLAYER_FOUND)) {
-                // TODO: Show that game is started
+                new AlertDialog.Builder(activity)
+                        .setMessage(R.string.player_not_found)
+                        .setPositiveButton(R.string.ok, (dialog, which) ->
+                            activity.getSupportFragmentManager().popBackStack()
+                        )
+                        .show();
             }
         }
     };
@@ -60,6 +56,25 @@ public final class ServerPlayer extends Player {
             if (intent.getAction().equals(Server.BROADCAST_ROLE)) {
                 role = intent.getByteExtra(Server.BROADCAST_GET_ROLE, (byte) 0);
                 showRole(activity);
+
+                activity.getSupportFragmentManager()
+                        .beginTransaction()
+                        .replace(
+                                R.id.fragment_container,
+                                GameFragment.newInstance(ServerPlayer.this)
+                        )
+                        .addToBackStack(null)
+                        .commit();
+            }
+        }
+    };
+
+    @NonNull
+    private final BroadcastReceiver getTurnReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            if (intent.getAction().equals(Server.BROADCAST_TURN)) {
+                // TODO: change label on R.string.your_turn, start move if needed
             }
         }
     };
@@ -93,10 +108,18 @@ public final class ServerPlayer extends Player {
     }
 
     @NonNull
-    private final Intent registerPlayerFoundReceiver() {
+    private final Intent registerGetRoleReceiver() {
         return activity.registerReceiver(
-                playerFoundReceiver,
-                new IntentFilter(Server.BROADCAST_PLAYER_FOUND)
+                getRoleReceiver,
+                new IntentFilter(Server.BROADCAST_ROLE)
+        );
+    }
+
+    @NonNull
+    private final Intent registerGetTurnReceiver() {
+        return activity.registerReceiver(
+                getTurnReceiver,
+                new IntentFilter(Server.BROADCAST_TURN)
         );
     }
 
@@ -116,23 +139,26 @@ public final class ServerPlayer extends Player {
         );
     }
 
-    final void registerReceivers() {
+    public final void registerReceivers() {
         registerNoPlayerFoundReceiver();
-        registerPlayerFoundReceiver();
+        registerGetRoleReceiver();
+        registerGetTurnReceiver();
         registerSecondPlayerMovedReceiver();
         registerGameFinishedReceiver();
     }
 
-    final void unregisterReceivers() {
+    private final void unregisterReceivers() {
         activity.unregisterReceiver(noPlayerFoundReceiver);
-        activity.unregisterReceiver(playerFoundReceiver);
+        activity.unregisterReceiver(getRoleReceiver);
+        activity.unregisterReceiver(getTurnReceiver);
         activity.unregisterReceiver(secondPlayerMovedReceiver);
         activity.unregisterReceiver(gameFinishedReceiver);
     }
 
-    private final void sendReady() {
+    @Override
+    public final void sendReady() {
         if (application.serviceBound) {
-            application.sendBroadcast(new Intent(Server.BROADCAST_CREATE_GAME));
+            sendCreateGame();
         } else {
             final Intent runServerIntent = new Intent(application, Server.class);
 
@@ -155,6 +181,7 @@ public final class ServerPlayer extends Player {
 
     private final void sendCancelGame() {
         application.sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
+        unregisterReceivers();
     }
 
     private final void sendPlayerMoved(final int x, final int y) {

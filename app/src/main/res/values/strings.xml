@@ -7,4 +7,8 @@
     <string name="connect_to_existing_room">Connect to existing room</string>
     <string name="cross_role">You are a cross</string>
     <string name="zero_role">You are a zero</string>
+    <string name="your_turn">Your turn!</string>
+    <string name="opponents_turn">Opponent\'s turn</string>
+    <string name="player_not_found">Player isn\t found. Try later</string>
+    <string name="ok">OK</string>
 </resources>

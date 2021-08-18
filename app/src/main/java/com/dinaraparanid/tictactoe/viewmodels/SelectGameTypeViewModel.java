@@ -1,7 +1,10 @@
 package com.dinaraparanid.tictactoe.viewmodels;
 
+import android.app.Activity;
+
 import androidx.annotation.NonNull;
 import androidx.databinding.BaseObservable;
+import androidx.fragment.app.FragmentActivity;
 
 import com.dinaraparanid.tictactoe.MainActivity;
 import com.dinaraparanid.tictactoe.R;
@@ -11,9 +14,9 @@ import com.dinaraparanid.tictactoe.fragments.SelectGameTypeFragment;
 public final class SelectGameTypeViewModel extends BaseObservable {
 
     @NonNull
-    public final MainActivity activity;
+    private final FragmentActivity activity;
 
-    public SelectGameTypeViewModel(@NonNull final MainActivity activity) {
+    public SelectGameTypeViewModel(@NonNull final FragmentActivity activity) {
         this.activity = activity;
     }
 

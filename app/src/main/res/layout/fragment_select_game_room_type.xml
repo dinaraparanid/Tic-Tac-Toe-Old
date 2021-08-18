@@ -4,7 +4,7 @@
 
     <data>
         <variable
-            name="select_game_room_view_model"
+            name="view_model"
             type="com.dinaraparanid.tictactoe.viewmodels.SelectGameRoomViewModel" />
     </data>
 
@@ -34,6 +34,7 @@
             android:textColorLink="@null"
             android:textCursorDrawable="@null"
             android:textSize="50sp"
+            android:onClick="@{() -> view_model.startNewGame()}"
             app:carbon_cornerRadius="10dp"
             app:carbon_elevation="0dp"
             app:carbon_font="@font/pristina"
@@ -67,6 +68,7 @@
             android:textColorLink="@null"
             android:textCursorDrawable="@null"
             android:textSize="50sp"
+            android:onClick="@{() -> view_model.connectToGame()}"
             app:carbon_cornerRadius="10dp"
             app:carbon_elevation="0dp"
             app:carbon_font="@font/pristina"

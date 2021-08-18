@@ -34,43 +34,58 @@ public final class Server extends Service {
 
     private final int deskSize = 3;
     byte[][] desk = new byte[deskSize][deskSize]; // 0 -> null, 1 -> x, 2 -> 0
-    int turn = 0;
+    byte turn = 0;
 
     // -------------------------------- Receive broadcasts --------------------------------
 
     @NonNls
+    @NonNull
     static final String BROADCAST_CREATE_GAME = "create_game";
 
     @NonNls
+    @NonNull
     static final String BROADCAST_CANCEL_GAME = "cancel_game";
 
     @NonNls
+    @NonNull
     static final String BROADCAST_ROLE = "role";
 
     @NonNls
+    @NonNull
     static final String BROADCAST_GET_ROLE = "get_role";
 
     @NonNls
+    @NonNull
+    static final String BROADCAST_TURN = "turn";
+
+    @NonNls
+    @NonNull
+    static final String BROADCAST_GET_TURN = "get_turn";
+
+    @NonNls
+    @NonNull
     static final String BROADCAST_FIRST_PLAYER_MOVED = "first_player_moved";
 
     @NonNls
+    @NonNull
     static final String BROADCAST_FIRST_PLAYER_DISCONNECTED = "first_player_disconnected";
 
     @NonNls
+    @NonNull
     static final String BROADCAST_KILL = "kill";
 
     // -------------------------------- Send broadcasts --------------------------------
 
     @NonNls
+    @NonNull
     static final String BROADCAST_NO_PLAYER_FOUND = "no_player_found";
 
     @NonNls
-    static final String BROADCAST_PLAYER_FOUND = "player_found";
-
-    @NonNls
+    @NonNull
     static final String BROADCAST_SECOND_PLAYER_MOVED = "second_player_moved";
 
     @NonNls
+    @NonNull
     static final String BROADCAST_GAME_FINISHED = "game_finished";
 
     // -------------------------------- ClientPlayer callbacks --------------------------------
@@ -130,7 +145,7 @@ public final class Server extends Service {
 
             if (checkMovement(0, coordinate)) {
                 desk[coordinate.getY()][coordinate.getX()] = 1;
-                turn = (turn + 1) % 2;
+                turn = (byte)((turn + 1) % 2);
             }
 
             // TODO: send info to players
@@ -163,8 +178,14 @@ public final class Server extends Service {
     }
 
     private class SendRolesState extends State {
-        SendRolesState(@NonNull final SocketChannel client) {
+        SendRolesState(@NonNull final WritableByteChannel client) {
             super(() -> sendRoles(client));
+        }
+    }
+
+    private class SendTurnState extends State {
+        SendTurnState(@NonNull final WritableByteChannel client) {
+            super(() -> sendTurn(client));
         }
     }
 
@@ -349,6 +370,26 @@ public final class Server extends Service {
                 .sendBroadcast(
                         new Intent(BROADCAST_ROLE)
                                 .putExtra(BROADCAST_GET_ROLE, serverPlayerRole)
+                );
+    }
+
+    private final void sendTurn(@NonNull final WritableByteChannel client) {
+        final ByteBuffer buffer = ByteBuffer.allocate(2);
+        buffer.put(ClientPlayer.TURN_COMMAND);
+        buffer.put(turn);
+        buffer.flip();
+
+        try {
+            client.write(buffer);
+        } catch (final IOException e) {
+            e.printStackTrace();
+        }
+
+        LocalBroadcastManager
+                .getInstance(getApplicationContext())
+                .sendBroadcast(
+                        new Intent(BROADCAST_TURN)
+                                .putExtra(BROADCAST_GET_TURN, turn)
                 );
     }
 }
