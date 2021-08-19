@@ -26,11 +26,17 @@ public abstract class Player implements Serializable {
     private static final String LOCATION = "com.dinaraparanid.tictactoe.utils.polymorphism.Player";
 
     protected byte role;
+    protected byte turn;
 
     @NonNull
     protected MainActivity activity;
 
+    @NonNull
+    protected GameFragment gameFragment;
+
     public abstract void sendReady();
+
+    public abstract void sendMove(final int y, final int x);
 
     protected final void showRole(@NonNull final Context context) {
         new AlertDialog.Builder(context)
@@ -39,15 +45,26 @@ public abstract class Player implements Serializable {
                 .show();
     }
 
+    protected final void initGame() {
+        gameFragment = GameFragment.newInstance(this);
+    }
+
     protected final void startGame() {
         activity.getSupportFragmentManager()
                 .beginTransaction()
-                .replace(
-                        R.id.fragment_container,
-                        GameFragment.newInstance(this)
-                )
+                .replace(R.id.fragment_container, gameFragment)
                 .addToBackStack(null)
                 .commit();
+    }
+
+    @Contract(pure = true)
+    public final byte getRole() {
+        return role;
+    }
+
+    @Contract(pure = true)
+    public final boolean isMoving() {
+        return role == turn;
     }
 
     @Contract("_ -> fail")

@@ -4,7 +4,12 @@
     xmlns:android="http://schemas.android.com/apk/res/android">
 
     <data>
+        <import type="com.dinaraparanid.tictactoe.R"/>
+        <import type="carbon.widget.TextView"/>
 
+        <variable
+            name="view_model"
+            type="com.dinaraparanid.tictactoe.viewmodels.GameFragmentViewModel" />
     </data>
 
     <carbon.widget.ConstraintLayout
@@ -17,6 +22,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:gravity="center"
+            android:text="@{view_model.player.moving ? R.string.your_turn : R.string.opponents_turn}"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
@@ -27,6 +33,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:text="@{view_model.timeLeft}"
+            android:visibility="@{view_model.player.moving ? TextView.VISIBLE : TextView.INVISIBLE}"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@+id/turn"
             app:layout_constraintTop_toBottomOf="@+id/turn" />
@@ -58,19 +66,25 @@
                     android:id="@+id/button_1"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:src="@{view_model.getButtonImage(0)}"
+                    android:clickable="@{view_model.player.moving}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_2"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:src="@{view_model.getButtonImage(1)}"
+                    android:clickable="@{view_model.player.moving}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_3"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:src="@{view_model.getButtonImage(2)}"
+                    android:clickable="@{view_model.player.moving}"/>
 
             </carbon.widget.LinearLayout>
 
@@ -87,19 +101,25 @@
                     android:id="@+id/button_4"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:src="@{view_model.getButtonImage(3)}"
+                    android:clickable="@{view_model.player.moving}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_5"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:src="@{view_model.getButtonImage(4)}"
+                    android:clickable="@{view_model.player.moving}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_6"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:src="@{view_model.getButtonImage(5)}"
+                    android:clickable="@{view_model.player.moving}"/>
 
             </carbon.widget.LinearLayout>
 
@@ -115,19 +135,25 @@
                     android:id="@+id/button_7"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:src="@{view_model.getButtonImage(6)}"
+                    android:clickable="@{view_model.player.moving}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_8"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:src="@{view_model.getButtonImage(7)}"
+                    android:clickable="@{view_model.player.moving}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_9"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:layout_weight="1" />
+                    android:layout_weight="1"
+                    android:src="@{view_model.getButtonImage(8)}"
+                    android:clickable="@{view_model.player.moving}"/>
 
             </carbon.widget.LinearLayout>
 

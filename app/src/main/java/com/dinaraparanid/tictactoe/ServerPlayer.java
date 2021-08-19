@@ -9,7 +9,6 @@ import android.os.Build;
 
 import androidx.annotation.NonNull;
 
-import com.dinaraparanid.tictactoe.fragments.GameFragment;
 import com.dinaraparanid.tictactoe.utils.Coordinate;
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 
@@ -56,15 +55,8 @@ public final class ServerPlayer extends Player {
             if (intent.getAction().equals(Server.BROADCAST_ROLE)) {
                 role = intent.getByteExtra(Server.BROADCAST_GET_ROLE, (byte) 0);
                 showRole(activity);
-
-                activity.getSupportFragmentManager()
-                        .beginTransaction()
-                        .replace(
-                                R.id.fragment_container,
-                                GameFragment.newInstance(ServerPlayer.this)
-                        )
-                        .addToBackStack(null)
-                        .commit();
+                initGame();
+                startGame();
             }
         }
     };
@@ -73,9 +65,19 @@ public final class ServerPlayer extends Player {
     private final BroadcastReceiver getTurnReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(Server.BROADCAST_TURN)) {
-                // TODO: change label on R.string.your_turn, start move if needed
-            }
+            if (intent.getAction().equals(Server.BROADCAST_TURN))
+                gameFragment.updatePlayer();
+        }
+    };
+
+    @NonNull
+    private final BroadcastReceiver updateTableReceiver = new BroadcastReceiver() {
+        @Override
+        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            if (intent.getAction().equals(Server.BROADCAST_UPDATE_TABLE))
+                gameFragment.updateTable(
+                        (byte[][]) intent.getSerializableExtra(Server.BROADCAST_GET_UPDATE_TABLE)
+                );
         }
     };
 
@@ -124,6 +126,14 @@ public final class ServerPlayer extends Player {
     }
 
     @NonNull
+    private final Intent registerUpdateTableReceiver() {
+        return activity.registerReceiver(
+                updateTableReceiver,
+                new IntentFilter(Server.BROADCAST_UPDATE_TABLE)
+        );
+    }
+
+    @NonNull
     private final Intent registerSecondPlayerMovedReceiver() {
         return activity.registerReceiver(
                 secondPlayerMovedReceiver,
@@ -137,22 +147,6 @@ public final class ServerPlayer extends Player {
                 gameFinishedReceiver,
                 new IntentFilter(Server.BROADCAST_GAME_FINISHED)
         );
-    }
-
-    public final void registerReceivers() {
-        registerNoPlayerFoundReceiver();
-        registerGetRoleReceiver();
-        registerGetTurnReceiver();
-        registerSecondPlayerMovedReceiver();
-        registerGameFinishedReceiver();
-    }
-
-    private final void unregisterReceivers() {
-        activity.unregisterReceiver(noPlayerFoundReceiver);
-        activity.unregisterReceiver(getRoleReceiver);
-        activity.unregisterReceiver(getTurnReceiver);
-        activity.unregisterReceiver(secondPlayerMovedReceiver);
-        activity.unregisterReceiver(gameFinishedReceiver);
     }
 
     @Override
@@ -175,6 +169,32 @@ public final class ServerPlayer extends Player {
         }
     }
 
+    @Override
+    public final void sendMove(final int y, final int x) {
+        application.sendBroadcast(
+                new Intent(Server.BROADCAST_FIRST_PLAYER_MOVED)
+                        .putExtra(COORDINATE_KEY, new Coordinate(x, y))
+        );
+    }
+
+    public final void registerReceivers() {
+        registerNoPlayerFoundReceiver();
+        registerGetRoleReceiver();
+        registerGetTurnReceiver();
+        registerUpdateTableReceiver();
+        registerSecondPlayerMovedReceiver();
+        registerGameFinishedReceiver();
+    }
+
+    private final void unregisterReceivers() {
+        activity.unregisterReceiver(noPlayerFoundReceiver);
+        activity.unregisterReceiver(getRoleReceiver);
+        activity.unregisterReceiver(getTurnReceiver);
+        activity.unregisterReceiver(updateTableReceiver);
+        activity.unregisterReceiver(secondPlayerMovedReceiver);
+        activity.unregisterReceiver(gameFinishedReceiver);
+    }
+
     private final void sendCreateGame() {
         application.sendBroadcast(new Intent(Server.BROADCAST_CREATE_GAME));
     }
@@ -182,13 +202,6 @@ public final class ServerPlayer extends Player {
     private final void sendCancelGame() {
         application.sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
         unregisterReceivers();
-    }
-
-    private final void sendPlayerMoved(final int x, final int y) {
-        application.sendBroadcast(
-                new Intent(Server.BROADCAST_FIRST_PLAYER_MOVED)
-                        .putExtra(COORDINATE_KEY, new Coordinate(x, y))
-        );
     }
 
     private final void sendPlayerDisconnected() {

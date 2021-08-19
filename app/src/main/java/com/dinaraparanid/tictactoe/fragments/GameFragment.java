@@ -9,10 +9,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.DataBindingUtil;
 
+import com.dinaraparanid.tictactoe.BR;
 import com.dinaraparanid.tictactoe.R;
 import com.dinaraparanid.tictactoe.databinding.FragmentGameBinding;
 import com.dinaraparanid.tictactoe.utils.polymorphism.DataBindingFragment;
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
+import com.dinaraparanid.tictactoe.viewmodels.GameFragmentViewModel;
 
 import org.jetbrains.annotations.NonNls;
 
@@ -24,6 +26,9 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
 
     @NonNull
     private Player player;
+
+    @NonNull
+    private GameFragmentViewModel viewModel;
 
     @NonNull
     public static final GameFragment newInstance(@NonNull final Player player) {
@@ -55,6 +60,17 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
                 false
         );
 
+        viewModel = new GameFragmentViewModel(player, new byte[3][3]);
+        binding.setViewModel(viewModel);
+
         return binding.getRoot();
+    }
+
+    public final void updatePlayer() {
+        viewModel.notifyPropertyChanged(BR.player);
+    }
+
+    public final void updateTable(@NonNull final byte[][] gameTable) {
+        viewModel.updateGameTable(gameTable);
     }
 }

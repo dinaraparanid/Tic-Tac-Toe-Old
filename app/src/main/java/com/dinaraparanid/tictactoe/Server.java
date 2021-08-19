@@ -26,14 +26,17 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Iterator;
+
+import kotlin.collections.ArraysKt;
 
 public final class Server extends Service {
     private static final int PORT = 1337;
     private static final String HOST_NAME = "127.0.0.1";
 
-    private final int deskSize = 3;
-    byte[][] desk = new byte[deskSize][deskSize]; // 0 -> null, 1 -> x, 2 -> 0
+    static final int gameTableSize = 3; // TODO: create customizable table
+    byte[][] gameTable = new byte[gameTableSize][gameTableSize]; // 0 -> null, 1 -> x, 2 -> 0
     byte turn = 0;
 
     // -------------------------------- Receive broadcasts --------------------------------
@@ -45,22 +48,6 @@ public final class Server extends Service {
     @NonNls
     @NonNull
     static final String BROADCAST_CANCEL_GAME = "cancel_game";
-
-    @NonNls
-    @NonNull
-    static final String BROADCAST_ROLE = "role";
-
-    @NonNls
-    @NonNull
-    static final String BROADCAST_GET_ROLE = "get_role";
-
-    @NonNls
-    @NonNull
-    static final String BROADCAST_TURN = "turn";
-
-    @NonNls
-    @NonNull
-    static final String BROADCAST_GET_TURN = "get_turn";
 
     @NonNls
     @NonNull
@@ -82,6 +69,30 @@ public final class Server extends Service {
 
     @NonNls
     @NonNull
+    static final String BROADCAST_ROLE = "role";
+
+    @NonNls
+    @NonNull
+    static final String BROADCAST_GET_ROLE = "get_role";
+
+    @NonNls
+    @NonNull
+    static final String BROADCAST_TURN = "turn";
+
+    @NonNls
+    @NonNull
+    static final String BROADCAST_GET_TURN = "get_turn";
+
+    @NonNls
+    @NonNull
+    static final String BROADCAST_UPDATE_TABLE = "update_table";
+
+    @NonNls
+    @NonNull
+    static final String BROADCAST_GET_UPDATE_TABLE = "get_update_table";
+
+    @NonNls
+    @NonNull
     static final String BROADCAST_SECOND_PLAYER_MOVED = "second_player_moved";
 
     @NonNls
@@ -91,6 +102,10 @@ public final class Server extends Service {
     // -------------------------------- ClientPlayer callbacks --------------------------------
 
     static final byte PLAYER_IS_FOUND = 0;
+
+    static final byte PLAYER_MOVED = 1;
+    static final byte PLAYER_MOVED_Y = 2;
+    static final byte PLAYER_MOVED_X = 3;
 
     private static final int NO_PLAYER_FOUND = (int) 1e9;
 
@@ -144,7 +159,7 @@ public final class Server extends Service {
                     .getSerializableExtra(ServerPlayer.COORDINATE_KEY);
 
             if (checkMovement(0, coordinate)) {
-                desk[coordinate.getY()][coordinate.getX()] = 1;
+                gameTable[coordinate.getY()][coordinate.getX()] = 1;
                 turn = (byte)((turn + 1) % 2);
             }
 
@@ -171,25 +186,25 @@ public final class Server extends Service {
         }
     };
 
-    private class SecondPlayerIsFoundState extends State {
+    private final class SecondPlayerIsFoundState extends State {
         SecondPlayerIsFoundState() {
             super(() -> isClientPlayerConnected = true);
         }
     }
 
-    private class SendRolesState extends State {
+    private final class SendRolesState extends State {
         SendRolesState(@NonNull final WritableByteChannel client) {
             super(() -> sendRoles(client));
         }
     }
 
-    private class SendTurnState extends State {
+    private final class SendTurnState extends State {
         SendTurnState(@NonNull final WritableByteChannel client) {
             super(() -> sendTurn(client));
         }
     }
 
-    private class SecondPlayerIsMovedState extends State {
+    private final class SecondPlayerIsMovedState extends State {
         SecondPlayerIsMovedState() {
             // TODO: Second player is moved
             super(() -> {});
@@ -319,6 +334,7 @@ public final class Server extends Service {
                         switch (readerBuffer.get()) {
                             case PLAYER_IS_FOUND:
                                 new SendRolesState(client).run();
+                                new SendTurnState(client).run();
                                 break;
 
                             default:
@@ -337,11 +353,11 @@ public final class Server extends Service {
 
         if (coordinate.getX() < 0 ||
                 coordinate.getY() < 0 ||
-                coordinate.getX() >= deskSize ||
-                coordinate.getY() >= deskSize
+                coordinate.getX() >= gameTableSize ||
+                coordinate.getY() >= gameTableSize
         ) return false;
 
-        return desk[coordinate.getY()][coordinate.getX()] != 0;
+        return gameTable[coordinate.getY()][coordinate.getX()] != 0;
     }
 
     final void sendNoPlayerFound() {
@@ -359,11 +375,8 @@ public final class Server extends Service {
         buffer.put(clientPlayerRole);
         buffer.flip();
 
-        try {
-            client.write(buffer);
-        } catch (final IOException e) {
-            e.printStackTrace();
-        }
+        try { client.write(buffer); }
+        catch (final IOException e) { e.printStackTrace(); }
 
         LocalBroadcastManager
                 .getInstance(getApplicationContext())
@@ -373,23 +386,40 @@ public final class Server extends Service {
                 );
     }
 
-    private final void sendTurn(@NonNull final WritableByteChannel client) {
+    final void sendTurn(@NonNull final WritableByteChannel client) {
         final ByteBuffer buffer = ByteBuffer.allocate(2);
         buffer.put(ClientPlayer.TURN_COMMAND);
         buffer.put(turn);
         buffer.flip();
 
-        try {
-            client.write(buffer);
-        } catch (final IOException e) {
-            e.printStackTrace();
-        }
+        try { client.write(buffer); }
+        catch (final IOException e) { e.printStackTrace(); }
 
         LocalBroadcastManager
                 .getInstance(getApplicationContext())
                 .sendBroadcast(
                         new Intent(BROADCAST_TURN)
                                 .putExtra(BROADCAST_GET_TURN, turn)
+                );
+    }
+
+    final void sendUpdatedTable(@NonNull final WritableByteChannel client) {
+        final ByteBuffer buffer = ByteBuffer.allocate(10);
+        buffer.put(ClientPlayer.UPDATE_TABLE_COMMAND);
+
+        // Damn, streams requires API 24 :(
+        for (final byte[] r : gameTable)
+            for (final byte b : r)
+                buffer.put(b);
+
+        try { client.write(buffer); }
+        catch (final IOException e) { e.printStackTrace(); }
+
+        LocalBroadcastManager
+                .getInstance(getApplicationContext())
+                .sendBroadcast(
+                        new Intent(BROADCAST_UPDATE_TABLE)
+                        .putExtra(BROADCAST_GET_UPDATE_TABLE, gameTable)
                 );
     }
 }
