@@ -12,13 +12,6 @@ import java.nio.channels.SocketChannel;
 
 public final class ClientPlayer extends Player {
     private static final int PORT = 1337;
-    private static final byte NO_COMMAND = -1;
-    static final byte SHOW_ROLE_COMMAND = 0;
-    static final byte TURN_COMMAND = 1;
-    static final byte UPDATE_TABLE_COMMAND = 2;
-    static final byte INCORRECT_MOVE_COMMAND = 3;
-    static final byte FIRST_PLAYER_MOVED_COMMAND = 4;
-    static final byte COMMAND_GAME_FINISH = 5;
 
     @NonNull
     final SocketChannel client;
@@ -26,10 +19,8 @@ public final class ClientPlayer extends Player {
     @NonNull
     private final State[] states = {
             new ShowRoleState(),
-            new GetTurnState(),
-            new UpdateTableState(),
-            new IncorrectMoveState(),
-            new FirstPlayerMovedState(),
+            new CorrectMoveState(),
+            new InvalidMoveState(),
             new GameFinishedState()
     };
 
@@ -53,48 +44,24 @@ public final class ClientPlayer extends Player {
         }
     }
 
-    private final class GetTurnState extends State {
-        GetTurnState() {
-            super(() -> gameFragment.updatePlayer());
-        }
-    }
-
-    private final class UpdateTableState extends  State {
-        UpdateTableState() {
+    private final class CorrectMoveState extends State {
+        CorrectMoveState() {
             super(() -> {
-                final ByteBuffer buffer = ByteBuffer.allocate(9);
-
-                try { client.read(buffer); }
-                catch (final IOException e) { e.printStackTrace(); }
-
-                buffer.flip();
-
-                final byte[][] gameTable = new byte[Server.gameTableSize][Server.gameTableSize];
-
-                for (int i = 0; i < Server.gameTableSize; i++)
-                    for (int q = 0; q < Server.gameTableSize; q++)
-                        gameTable[i][q] = buffer.get();
-
-                gameFragment.updateTable(gameTable);
+                updateTurn();
+                gameFragment.updateTable(readTable());
             });
         }
     }
 
-    private final class IncorrectMoveState extends State {
-        IncorrectMoveState() {
-            super(() -> {}); // TODO: Say that move was wrong
-        }
-    }
-
-    private final class FirstPlayerMovedState extends State {
-        FirstPlayerMovedState() {
-            super(() -> {}); // TODO: Redraw table, start move
+    private final class InvalidMoveState extends State {
+        InvalidMoveState() {
+            super(() -> gameFragment.showInvalidMove());
         }
     }
 
     private final class GameFinishedState extends State {
         GameFinishedState() {
-            super(() -> {}); // TODO: Show game results
+            super(() -> gameFragment.gameFinished());
         }
     }
 
@@ -121,10 +88,10 @@ public final class ClientPlayer extends Player {
     }
 
     private final void startCycle() {
-        byte command = NO_COMMAND;
+        byte command = -1;
 
         try {
-            while (command != COMMAND_GAME_FINISH) {
+            while (command != Server.COMMAND_GAME_FINISH) {
                 final ByteBuffer readBuffer = ByteBuffer.allocate(1);
                 client.read(readBuffer);
                 readBuffer.flip();
@@ -147,5 +114,23 @@ public final class ClientPlayer extends Player {
 
         readBuffer.flip();
         role = readBuffer.get();
+    }
+
+    @NonNull
+    final byte[][] readTable() {
+        final ByteBuffer buffer = ByteBuffer.allocate(9);
+
+        try { client.read(buffer); }
+        catch (final IOException e) { e.printStackTrace(); }
+
+        buffer.flip();
+
+        final byte[][] gameTable = new byte[Server.gameTableSize][Server.gameTableSize];
+
+        for (int i = 0; i < Server.gameTableSize; i++)
+            for (int q = 0; q < Server.gameTableSize; q++)
+                gameTable[i][q] = buffer.get();
+
+        return gameTable;
     }
 }

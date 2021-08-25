@@ -48,9 +48,6 @@
     <inspection_tool class="AndroidLintValidActionsXml" enabled="true" level="ERROR" enabled_by_default="true" />
     <inspection_tool class="AndroidLintWrongThreadInterprocedural" enabled="true" level="ERROR" enabled_by_default="true" />
     <inspection_tool class="AnnotationClass" enabled="true" level="WARNING" enabled_by_default="true" />
-    <inspection_tool class="AnonymousClassComplexity" enabled="true" level="WARNING" enabled_by_default="true">
-      <option name="m_limit" value="3" />
-    </inspection_tool>
     <inspection_tool class="AnonymousClassMethodCount" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="m_limit" value="1" />
     </inspection_tool>
@@ -191,9 +188,6 @@
     </inspection_tool>
     <inspection_tool class="ClassWithTooManyTransitiveDependents" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="limit" value="35" />
-    </inspection_tool>
-    <inspection_tool class="ClassWithoutNoArgConstructor" enabled="true" level="WARNING" enabled_by_default="true">
-      <option name="m_ignoreClassesWithNoConstructors" value="true" />
     </inspection_tool>
     <inspection_tool class="CloneCallsConstructors" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="CloneInNonCloneableClass" enabled="true" level="WARNING" enabled_by_default="true" />
@@ -337,9 +331,6 @@
       <option name="m_limit" value="3" />
     </inspection_tool>
     <inspection_tool class="IgnoredJUnitTest" enabled="true" level="WARNING" enabled_by_default="true" />
-    <inspection_tool class="ImplicitCallToSuper" enabled="true" level="WARNING" enabled_by_default="true">
-      <option name="m_ignoreForObjectSubclasses" value="false" />
-    </inspection_tool>
     <inspection_tool class="ImplicitDefaultCharsetUsage" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="IncompleteDestructuring" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="InconsistentLanguageLevel" enabled="true" level="WARNING" enabled_by_default="true" />
@@ -356,7 +347,6 @@
     <inspection_tool class="InstanceVariableInitialization" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="m_ignorePrimitives" value="false" />
     </inspection_tool>
-    <inspection_tool class="InstanceVariableOfConcreteClass" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="InstanceVariableUninitializedUse" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="m_ignorePrimitives" value="false" />
       <option name="annotationNamesString" value="" />
@@ -627,7 +617,6 @@
     </inspection_tool>
     <inspection_tool class="ProtectedMemberInFinalClass" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="PublicApiImplicitType" enabled="true" level="WEAK WARNING" enabled_by_default="true" />
-    <inspection_tool class="PublicConstructor" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="PublicConstructorInNonPublicClass" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="PublicFieldAccessedInSynchronizedContext" enabled="true" level="WARNING" enabled_by_default="true" />
     <inspection_tool class="PublicInnerClass" enabled="true" level="WARNING" enabled_by_default="true">

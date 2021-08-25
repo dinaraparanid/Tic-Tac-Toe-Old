@@ -9,6 +9,7 @@
     <string name="zero_role">You are a zero</string>
     <string name="your_turn">Your turn!</string>
     <string name="opponents_turn">Opponent\'s turn</string>
-    <string name="player_not_found">Player isn\t found. Try later</string>
+    <string name="player_not_found">Player isn’t found. Try later</string>
     <string name="ok">OK</string>
+    <string name="invalid_move">Invalid Move</string>
 </resources>

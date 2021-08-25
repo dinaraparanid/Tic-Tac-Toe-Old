@@ -26,7 +26,7 @@ public abstract class Player implements Serializable {
     private static final String LOCATION = "com.dinaraparanid.tictactoe.utils.polymorphism.Player";
 
     protected byte role;
-    protected byte turn;
+    private byte turn = 0;
 
     @NonNull
     protected MainActivity activity;
@@ -65,6 +65,11 @@ public abstract class Player implements Serializable {
     @Contract(pure = true)
     public final boolean isMoving() {
         return role == turn;
+    }
+
+    protected final void updateTurn() {
+        turn = (byte)(1 - turn);
+        gameFragment.updatePlayer();
     }
 
     @Contract("_ -> fail")

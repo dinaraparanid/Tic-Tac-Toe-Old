@@ -62,32 +62,27 @@ public final class ServerPlayer extends Player {
     };
 
     @NonNull
-    private final BroadcastReceiver getTurnReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver correctMoveReceiver = new BroadcastReceiver() {
+        @Override
+        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            if (intent.getAction().equals(Server.BROADCAST_CORRECT_MOVE)) {
+                updateTurn();
+
+                gameFragment.updateTable(
+                        (byte[][]) intent.getSerializableExtra(
+                                Server.BROADCAST_GET_UPDATE_TABLE
+                        )
+                );
+            }
+        }
+    };
+
+    @NonNull
+    private final BroadcastReceiver invalidMoveReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(Server.BROADCAST_TURN))
-                gameFragment.updatePlayer();
-        }
-    };
-
-    @NonNull
-    private final BroadcastReceiver updateTableReceiver = new BroadcastReceiver() {
-        @Override
-        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(Server.BROADCAST_UPDATE_TABLE))
-                gameFragment.updateTable(
-                        (byte[][]) intent.getSerializableExtra(Server.BROADCAST_GET_UPDATE_TABLE)
-                );
-        }
-    };
-
-    @NonNull
-    private final BroadcastReceiver secondPlayerMovedReceiver = new BroadcastReceiver() {
-        @Override
-        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(Server.BROADCAST_SECOND_PLAYER_MOVED)) {
-                // TODO: Update table, start move
-            }
+            if (intent.getAction().equals(Server.BROADCAST_INVALID_MOVE))
+                gameFragment.showInvalidMove();
         }
     };
 
@@ -95,9 +90,8 @@ public final class ServerPlayer extends Player {
     private final BroadcastReceiver gameFinishedReceiver = new BroadcastReceiver() {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(Server.BROADCAST_GAME_FINISHED)) {
-                // TODO: Show results, kill server
-            }
+            if (intent.getAction().equals(Server.BROADCAST_GAME_FINISHED))
+                gameFragment.gameFinished();
         }
     };
 
@@ -118,26 +112,18 @@ public final class ServerPlayer extends Player {
     }
 
     @NonNull
-    private final Intent registerGetTurnReceiver() {
+    private final Intent registerCorrectMoveReceiver() {
         return activity.registerReceiver(
-                getTurnReceiver,
-                new IntentFilter(Server.BROADCAST_TURN)
+                correctMoveReceiver,
+                new IntentFilter(Server.BROADCAST_CORRECT_MOVE)
         );
     }
 
     @NonNull
-    private final Intent registerUpdateTableReceiver() {
+    private final Intent registerInvalidMoveReceiver() {
         return activity.registerReceiver(
-                updateTableReceiver,
-                new IntentFilter(Server.BROADCAST_UPDATE_TABLE)
-        );
-    }
-
-    @NonNull
-    private final Intent registerSecondPlayerMovedReceiver() {
-        return activity.registerReceiver(
-                secondPlayerMovedReceiver,
-                new IntentFilter(Server.BROADCAST_SECOND_PLAYER_MOVED)
+                invalidMoveReceiver,
+                new IntentFilter(Server.BROADCAST_INVALID_MOVE)
         );
     }
 
@@ -172,7 +158,7 @@ public final class ServerPlayer extends Player {
     @Override
     public final void sendMove(final int y, final int x) {
         application.sendBroadcast(
-                new Intent(Server.BROADCAST_FIRST_PLAYER_MOVED)
+                new Intent(Server.BROADCAST_SERVER_PLAYER_MOVED)
                         .putExtra(COORDINATE_KEY, new Coordinate(x, y))
         );
     }
@@ -180,18 +166,16 @@ public final class ServerPlayer extends Player {
     public final void registerReceivers() {
         registerNoPlayerFoundReceiver();
         registerGetRoleReceiver();
-        registerGetTurnReceiver();
-        registerUpdateTableReceiver();
-        registerSecondPlayerMovedReceiver();
+        registerCorrectMoveReceiver();
+        registerInvalidMoveReceiver();
         registerGameFinishedReceiver();
     }
 
     private final void unregisterReceivers() {
         activity.unregisterReceiver(noPlayerFoundReceiver);
         activity.unregisterReceiver(getRoleReceiver);
-        activity.unregisterReceiver(getTurnReceiver);
-        activity.unregisterReceiver(updateTableReceiver);
-        activity.unregisterReceiver(secondPlayerMovedReceiver);
+        activity.unregisterReceiver(correctMoveReceiver);
+        activity.unregisterReceiver(invalidMoveReceiver);
         activity.unregisterReceiver(gameFinishedReceiver);
     }
 
@@ -205,6 +189,6 @@ public final class ServerPlayer extends Player {
     }
 
     private final void sendPlayerDisconnected() {
-        application.sendBroadcast(new Intent(Server.BROADCAST_FIRST_PLAYER_DISCONNECTED));
+        application.sendBroadcast(new Intent(Server.BROADCAST_SERVER_PLAYER_DISCONNECTED));
     }
 }

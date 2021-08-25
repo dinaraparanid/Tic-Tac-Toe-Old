@@ -9,5 +9,7 @@ public class State {
 
     protected State(@NonNull final Runnable action) { this.action = action; }
 
-    public void run() { action.run(); }
+    public void run() {
+        new Thread(() -> action.run()).start();
+    }
 }

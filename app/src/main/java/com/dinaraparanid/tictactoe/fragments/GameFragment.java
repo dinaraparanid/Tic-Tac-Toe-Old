@@ -1,5 +1,8 @@
 package com.dinaraparanid.tictactoe.fragments;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -72,5 +75,17 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
 
     public final void updateTable(@NonNull final byte[][] gameTable) {
         viewModel.updateGameTable(gameTable);
+    }
+
+    public final void showInvalidMove() {
+        new AlertDialog.Builder(requireContext())
+                .setMessage(R.string.invalid_move)
+                .setCancelable(true)
+                .setPositiveButton(R.string.ok, (dialog, which) -> dialog.dismiss())
+                .show();
+    }
+
+    public final void gameFinished() {
+        requireActivity().getSupportFragmentManager().popBackStack();
     }
 }
