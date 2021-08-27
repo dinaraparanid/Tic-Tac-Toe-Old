@@ -1,8 +1,6 @@
 package com.dinaraparanid.tictactoe.fragments;
 
 import android.app.AlertDialog;
-import android.app.Dialog;
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -38,7 +36,7 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
         final GameFragment gameFragment = new GameFragment();
         final Bundle args = new Bundle();
 
-        args.putSerializable(PLAYER_KEY, player);
+        args.putParcelable(PLAYER_KEY, player);
         gameFragment.setArguments(args);
         return gameFragment;
     }
@@ -46,7 +44,7 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
     @Override
     public final void onCreate(@Nullable final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        player = (Player) requireArguments().getSerializable(PLAYER_KEY);
+        player = requireArguments().getParcelable(PLAYER_KEY);
     }
 
     @NonNull

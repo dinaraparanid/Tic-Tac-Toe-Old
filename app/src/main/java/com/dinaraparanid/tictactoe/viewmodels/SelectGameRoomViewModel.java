@@ -19,10 +19,8 @@ public final class SelectGameRoomViewModel {
     }
 
     public final void startNewGame() {
-        new ServerPlayer(activity).sendReady();
+        new ServerPlayer().sendReady();
     }
 
-    public final void connectToGame() {
-        new ClientPlayer(activity).sendReady();
-    }
+    public final void connectToGame() { new ClientPlayer(); }
 }

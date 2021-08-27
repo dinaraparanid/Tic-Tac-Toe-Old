@@ -1,14 +1,19 @@
 package com.dinaraparanid.tictactoe.viewmodels;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.databinding.BaseObservable;
 import androidx.databinding.Bindable;
 
 import com.dinaraparanid.tictactoe.BR;
 import com.dinaraparanid.tictactoe.R;
+import com.dinaraparanid.tictactoe.Server;
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 
 import org.jetbrains.annotations.Contract;
+
+import java.util.Arrays;
 
 public class GameFragmentViewModel extends BaseObservable {
 
@@ -44,14 +49,15 @@ public class GameFragmentViewModel extends BaseObservable {
 
     @Contract(pure = true)
     public final int getButtonImage(final int buttonNumber) {
-        final int y = buttonNumber / 3;
-        final int x = buttonNumber % 3;
+        final int y = buttonNumber / Server.gameTableSize;
+        final int x = buttonNumber % Server.gameTableSize;
 
-        switch (gameTable[y][x]) {
-            case 0: return android.R.color.transparent;
-            case 1: return R.drawable.cross;
-            default: return R.drawable.zero;
-        }
+        if (gameTable[y][x] == 0)
+            return android.R.color.transparent;
+
+        return player.getNumber() == gameTable[y][x] ?
+                player.getRole() == 0 ? R.drawable.cross : R.drawable.zero :
+                player.getRole() == 0 ? R.drawable.zero : R.drawable.cross;
     }
 
     private final void updateTimeLeft() {
@@ -61,6 +67,14 @@ public class GameFragmentViewModel extends BaseObservable {
 
     public final void updateGameTable(@NonNull final byte[][] gameTab) {
         System.arraycopy(gameTab, 0, gameTable, 0, gameTab.length);
-        notifyPropertyChanged(BR.gameTable);
+
+        final StringBuilder builder = new StringBuilder();
+
+        for (final byte[] row : gameTable)
+            builder.append(Arrays.toString(row) + " | ");
+
+        Log.d("TEST", "New table: " + builder);
+
+        notifyPropertyChanged(BR._all);
     }
 }

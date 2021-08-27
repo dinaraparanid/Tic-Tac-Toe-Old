@@ -67,24 +67,30 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:src="@{view_model.getButtonImage(0)}"
-                    android:clickable="@{view_model.player.moving}"/>
+                    android:clickable="@{view_model.player.moving}"
+                    android:onClick="@{() -> view_model.player.sendMove(0, 0)}"
+                    android:scaleType="fitCenter"
+                    android:src="@{view_model.getButtonImage(0)}" />
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_2"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
+                    android:scaleType="fitCenter"
                     android:src="@{view_model.getButtonImage(1)}"
-                    android:clickable="@{view_model.player.moving}"/>
+                    android:clickable="@{view_model.player.moving}"
+                    android:onClick="@{() -> view_model.player.sendMove(0, 1)}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_3"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
+                    android:scaleType="fitCenter"
                     android:src="@{view_model.getButtonImage(2)}"
-                    android:clickable="@{view_model.player.moving}"/>
+                    android:clickable="@{view_model.player.moving}"
+                    android:onClick="@{() -> view_model.player.sendMove(0, 2)}"/>
 
             </carbon.widget.LinearLayout>
 
@@ -102,24 +108,30 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
+                    android:scaleType="fitCenter"
                     android:src="@{view_model.getButtonImage(3)}"
-                    android:clickable="@{view_model.player.moving}"/>
+                    android:clickable="@{view_model.player.moving}"
+                    android:onClick="@{() -> view_model.player.sendMove(1, 0)}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_5"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
+                    android:scaleType="fitCenter"
                     android:src="@{view_model.getButtonImage(4)}"
-                    android:clickable="@{view_model.player.moving}"/>
+                    android:clickable="@{view_model.player.moving}"
+                    android:onClick="@{() -> view_model.player.sendMove(1, 1)}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_6"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
+                    android:scaleType="fitCenter"
                     android:src="@{view_model.getButtonImage(5)}"
-                    android:clickable="@{view_model.player.moving}"/>
+                    android:clickable="@{view_model.player.moving}"
+                    android:onClick="@{() -> view_model.player.sendMove(1, 2)}"/>
 
             </carbon.widget.LinearLayout>
 
@@ -136,24 +148,30 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
+                    android:scaleType="fitCenter"
                     android:src="@{view_model.getButtonImage(6)}"
-                    android:clickable="@{view_model.player.moving}"/>
+                    android:clickable="@{view_model.player.moving}"
+                    android:onClick="@{() -> view_model.player.sendMove(2, 0)}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_8"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
+                    android:scaleType="fitCenter"
                     android:src="@{view_model.getButtonImage(7)}"
-                    android:clickable="@{view_model.player.moving}"/>
+                    android:clickable="@{view_model.player.moving}"
+                    android:onClick="@{() -> view_model.player.sendMove(2, 1)}"/>
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_9"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
+                    android:scaleType="fitCenter"
                     android:src="@{view_model.getButtonImage(8)}"
-                    android:clickable="@{view_model.player.moving}"/>
+                    android:clickable="@{view_model.player.moving}"
+                    android:onClick="@{() -> view_model.player.sendMove(2, 2)}"/>
 
             </carbon.widget.LinearLayout>
 

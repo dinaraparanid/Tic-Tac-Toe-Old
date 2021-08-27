@@ -5,17 +5,42 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Build;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.dinaraparanid.tictactoe.utils.Coordinate;
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NonNls;
 
+import java.util.Arrays;
+
 public final class ServerPlayer extends Player {
+
+    public static final Parcelable.Creator<ServerPlayer> CREATOR = new Parcelable.Creator<ServerPlayer>() {
+        @NonNull
+        @Contract("_ -> new")
+        @Override
+        public final ServerPlayer createFromParcel(@NonNull final Parcel source) {
+            return new ServerPlayer(
+                    source.readByte(),
+                    source.readByte(),
+                    source.readString()
+            );
+        }
+
+        @NonNull
+        @Contract(value = "_ -> new", pure = true)
+        @Override
+        public ServerPlayer[] newArray(final int size) {
+            return new ServerPlayer[0];
+        }
+    };
 
     @NonNls
     @NonNull
@@ -25,13 +50,20 @@ public final class ServerPlayer extends Player {
     @NonNull
     static final String COORDINATE_KEY = "coordinate_key";
 
-    public ServerPlayer(@NonNull final MainActivity activity) {
-        this.activity = activity;
-        registerNoPlayerFoundReceiver();
-        registerGetRoleReceiver();
-        registerCorrectMoveReceiver();
-        registerInvalidMoveReceiver();
-        registerGameFinishedReceiver();
+    public ServerPlayer() {
+        number = 1;
+        init();
+        registerReceivers();
+    }
+
+    public ServerPlayer(final byte role, final byte turn, @NonNull final String hostName) {
+        number = 1;
+        this.role = role;
+        this.turn = turn;
+        this.hostName = hostName;
+
+        init();
+        registerReceivers();
     }
 
     @NonNull
@@ -44,11 +76,37 @@ public final class ServerPlayer extends Player {
 
                 sendCancelGame();
 
-                new AlertDialog.Builder(activity)
+                new AlertDialog.Builder(Player.ApplicationAccessor.activity)
                         .setMessage(R.string.player_not_found)
                         .setPositiveButton(R.string.ok, (dialog, which) ->
-                            activity.getSupportFragmentManager().popBackStack()
+                                Player.ApplicationAccessor.activity
+                                        .getSupportFragmentManager()
+                                        .popBackStack()
                         )
+                        .show();
+            }
+        }
+    };
+
+    @NonNull
+    private final BroadcastReceiver showIPReceiver = new BroadcastReceiver() {
+        @Override
+        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
+            if (intent.getAction().equals(Server.BROADCAST_SHOW_IP)) {
+                Log.d(TAG, "Show IP");
+
+                new AlertDialog.Builder(Player.ApplicationAccessor.activity)
+                        .setMessage(
+                                String.format(
+                                        "%s: %s",
+                                        Player.ApplicationAccessor.activity
+                                                .getResources()
+                                                .getString(R.string.your_ip),
+                                        intent.getStringExtra(Server.BROADCAST_GET_IP)
+                                )
+                        )
+                        .setPositiveButton(R.string.ok, (dialog, which) -> dialog.dismiss())
+                        .setCancelable(true)
                         .show();
             }
         }
@@ -63,8 +121,8 @@ public final class ServerPlayer extends Player {
                 Log.d(TAG, "Get role");
 
                 role = intent.getByteExtra(Server.BROADCAST_GET_ROLE, (byte) 0);
-                showRole(activity);
-                initGame();
+                showRole(Player.ApplicationAccessor.activity);
+                if (gameFragment.get() == null) init();
                 startGame();
             }
         }
@@ -80,11 +138,18 @@ public final class ServerPlayer extends Player {
 
                 updateTurn();
 
-                gameFragment.get().updateTable(
-                        (byte[][]) intent.getSerializableExtra(
-                                Server.BROADCAST_GET_UPDATE_TABLE
-                        )
+                final byte[][] table = (byte[][]) intent.getSerializableExtra(
+                        Server.BROADCAST_GET_UPDATE_TABLE
                 );
+
+                final StringBuilder builder = new StringBuilder();
+
+                for (final byte[] row : table)
+                    builder.append(Arrays.toString(row) + " | ");
+
+                Log.d(TAG, "New table: " + builder);
+
+                gameFragment.get().updateTable(table);
             }
         }
     };
@@ -111,58 +176,87 @@ public final class ServerPlayer extends Player {
         }
     };
 
-    @NonNull
-    private final Intent registerNoPlayerFoundReceiver() {
-        return activity.registerReceiver(
-                noPlayerFoundReceiver,
-                new IntentFilter(Server.BROADCAST_NO_PLAYER_FOUND)
-        );
+    private final void registerShowIpReceiver() {
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.application.getApplicationContext())
+                .registerReceiver(
+                        showIPReceiver,
+                        new IntentFilter(Server.BROADCAST_SHOW_IP)
+                );
     }
 
-    @NonNull
-    private final Intent registerGetRoleReceiver() {
-        return activity.registerReceiver(
-                getRoleReceiver,
-                new IntentFilter(Server.BROADCAST_ROLE)
-        );
+    private final void registerNoPlayerFoundReceiver() {
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.application.getApplicationContext())
+                .registerReceiver(
+                        noPlayerFoundReceiver,
+                        new IntentFilter(Server.BROADCAST_NO_PLAYER_FOUND)
+                );
     }
 
-    @NonNull
-    private final Intent registerCorrectMoveReceiver() {
-        return activity.registerReceiver(
-                correctMoveReceiver,
-                new IntentFilter(Server.BROADCAST_CORRECT_MOVE)
-        );
+    private final void registerGetRoleReceiver() {
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.application.getApplicationContext())
+                .registerReceiver(
+                        getRoleReceiver,
+                        new IntentFilter(Server.BROADCAST_ROLE)
+                );
     }
 
-    @NonNull
-    private final Intent registerInvalidMoveReceiver() {
-        return activity.registerReceiver(
-                invalidMoveReceiver,
-                new IntentFilter(Server.BROADCAST_INVALID_MOVE)
-        );
+    private final void registerCorrectMoveReceiver() {
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.application.getApplicationContext())
+                .registerReceiver(
+                        correctMoveReceiver,
+                        new IntentFilter(Server.BROADCAST_CORRECT_MOVE)
+                );
     }
 
-    @NonNull
-    private final Intent registerGameFinishedReceiver() {
-        return activity.registerReceiver(
-                gameFinishedReceiver,
-                new IntentFilter(Server.BROADCAST_GAME_FINISHED)
-        );
+    private final void registerInvalidMoveReceiver() {
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.application.getApplicationContext())
+                .registerReceiver(
+                        invalidMoveReceiver,
+                        new IntentFilter(Server.BROADCAST_INVALID_MOVE)
+                );
+    }
+
+    private final void registerGameFinishedReceiver() {
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.application.getApplicationContext())
+                .registerReceiver(
+                        gameFinishedReceiver,
+                        new IntentFilter(Server.BROADCAST_GAME_FINISHED)
+                );
+    }
+
+    protected final void registerReceivers() {
+        registerShowIpReceiver();
+        registerNoPlayerFoundReceiver();
+        registerGetRoleReceiver();
+        registerCorrectMoveReceiver();
+        registerInvalidMoveReceiver();
+        registerGameFinishedReceiver();
     }
 
     @Override
     public final void sendReady() {
-        final MainApplication app = (MainApplication) activity.getApplication();
+        final MainApplication app =
+                (MainApplication) Player.ApplicationAccessor.activity.getApplication();
 
         if (app.serviceBound) {
             sendCreateGame();
         } else {
-            final Intent runServerIntent = new Intent(activity, Server.class);
+            final Intent runServerIntent = new Intent(
+                    Player.ApplicationAccessor.activity.getApplicationContext(),
+                    Server.class
+            );
 
-            activity.startService(runServerIntent);
+            Player.ApplicationAccessor.activity
+                    .getApplicationContext()
+                    .startService(runServerIntent);
 
-            activity.bindService(
+            Player.ApplicationAccessor.activity.getApplicationContext().bindService(
                     runServerIntent,
                     app.serviceConnection,
                     Context.BIND_AUTO_CREATE
@@ -172,30 +266,56 @@ public final class ServerPlayer extends Player {
 
     @Override
     public final void sendMove(final int y, final int x) {
-        activity.sendBroadcast(
+        Player.ApplicationAccessor.activity.getApplicationContext().sendBroadcast(
                 new Intent(Server.BROADCAST_SERVER_PLAYER_MOVED)
                         .putExtra(COORDINATE_KEY, new Coordinate(x, y))
         );
     }
 
+    @NonNls
+    @NonNull
+    @Contract(pure = true)
+    @Override
+    public final String toString() {
+        return "ServerPlayer{" +
+                "noPlayerFoundReceiver=" + noPlayerFoundReceiver +
+                ", showIPReceiver=" + showIPReceiver +
+                ", getRoleReceiver=" + getRoleReceiver +
+                ", correctMoveReceiver=" + correctMoveReceiver +
+                ", invalidMoveReceiver=" + invalidMoveReceiver +
+                ", gameFinishedReceiver=" + gameFinishedReceiver +
+                '}';
+    }
+
     private final void unregisterReceivers() {
-        activity.unregisterReceiver(noPlayerFoundReceiver);
-        activity.unregisterReceiver(getRoleReceiver);
-        activity.unregisterReceiver(correctMoveReceiver);
-        activity.unregisterReceiver(invalidMoveReceiver);
-        activity.unregisterReceiver(gameFinishedReceiver);
+        final LocalBroadcastManager manager = LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.application.getApplicationContext());
+
+        manager.unregisterReceiver(showIPReceiver);
+        manager.unregisterReceiver(noPlayerFoundReceiver);
+        manager.unregisterReceiver(getRoleReceiver);
+        manager.unregisterReceiver(correctMoveReceiver);
+        manager.unregisterReceiver(invalidMoveReceiver);
+        manager.unregisterReceiver(gameFinishedReceiver);
     }
 
     private final void sendCreateGame() {
-        activity.sendBroadcast(new Intent(Server.BROADCAST_CREATE_GAME));
+        Player.ApplicationAccessor.activity
+                .getApplicationContext()
+                .sendBroadcast(new Intent(Server.BROADCAST_CREATE_GAME));
     }
 
     protected final void sendCancelGame() {
-        activity.sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
+        Player.ApplicationAccessor.activity
+                .getApplicationContext()
+                .sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
         unregisterReceivers();
     }
 
     private final void sendPlayerDisconnected() {
-        activity.sendBroadcast(new Intent(Server.BROADCAST_SERVER_PLAYER_DISCONNECTED));
+        Player.ApplicationAccessor.activity
+                .getApplicationContext()
+                .sendBroadcast(new Intent(Server.BROADCAST_SERVER_PLAYER_DISCONNECTED));
+        unregisterReceivers();
     }
 }

@@ -1,24 +1,53 @@
 package com.dinaraparanid.tictactoe;
 
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NonNls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.UnresolvedAddressException;
+import java.util.Arrays;
 
 public final class ClientPlayer extends Player {
 
     @NonNls
     @NonNull
     private static final String TAG = "ClientPlayer";
+
+    public static final Parcelable.Creator<ClientPlayer> CREATOR = new Creator<ClientPlayer>() {
+        @NonNull
+        @Contract("_ -> new")
+        @Override
+        public final ClientPlayer createFromParcel(@NonNull final Parcel source) {
+            return new ClientPlayer(
+                    source.readByte(),
+                    source.readByte(),
+                    source.readString()
+            );
+        }
+
+        @NonNull
+        @Contract(value = "_ -> new", pure = true)
+        @Override
+        public ClientPlayer[] newArray(final int size) {
+            return new ClientPlayer[0];
+        }
+    };
+
+    @NonNull
+    private String hostName;
 
     @NonNull
     SocketChannel client;
@@ -31,28 +60,30 @@ public final class ClientPlayer extends Player {
             new GameFinishedState()
     };
 
-    public ClientPlayer(@NonNull final MainActivity activity) {
-        this.activity = activity;
 
-        final Thread init = new Thread(new Runnable() {
-            @Override
-            public final void run() {
-                try {
-                    client = SocketChannel.open();
+    public ClientPlayer() {
+        number = 2;
+        init();
 
-                    // TODO: dialog with host name
-                    client.connect(new InetSocketAddress("192.168.1.127", Server.PORT));
+        new InputDialog.Builder()
+                .setMessage(R.string.host_ip)
+                .setOkAction(param -> {
+                    hostName = param;
+                    establishConnection();
+                    return null;
+                })
+                .build()
+                .show(Player.ApplicationAccessor.activity.getSupportFragmentManager(), null);
+    }
 
-                    new Thread(ClientPlayer.this::startCycle).start();
-                } catch (final IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+    public ClientPlayer(final byte role, final byte turn, @NonNull final String hostName) {
+        number = 2;
+        this.role = role;
+        this.turn = turn;
+        this.hostName = hostName;
 
-        init.start();
-        try { init.join(); }
-        catch (final InterruptedException e) { e.printStackTrace(); }
+        init();
+        establishConnection();
     }
 
     private final class ShowRoleState extends State {
@@ -63,8 +94,9 @@ public final class ClientPlayer extends Player {
                     Log.d(TAG, "Show role");
 
                     setRole();
-                    activity.runOnUiThread(() -> showRole(activity));
-                    initGame();
+                    Player.ApplicationAccessor.activity.runOnUiThread(
+                            () -> showRole(Player.ApplicationAccessor.activity)
+                    );
                     startGame();
                 }
             });
@@ -79,7 +111,16 @@ public final class ClientPlayer extends Player {
                     Log.d(TAG, "Correct move");
 
                     updateTurn();
-                    gameFragment.get().updateTable(readTable());
+
+                    final byte[][] table = readTable();
+                    final StringBuilder builder = new StringBuilder();
+
+                    for (final byte[] row : table)
+                        builder.append(Arrays.toString(row) + " | ");
+
+                    Log.d(TAG, "New table: " + builder);
+
+                    gameFragment.get().updateTable(table);
                 }
             });
         }
@@ -111,18 +152,15 @@ public final class ClientPlayer extends Player {
 
     @Override
     public final void sendReady() {
-        final Thread sendReady = new Thread(new Runnable() {
-            @Override
-            public final void run() {
-                final ByteBuffer sayHelloBuffer = ByteBuffer.allocate(1);
-                sayHelloBuffer.put(Server.PLAYER_IS_FOUND);
-                sayHelloBuffer.flip();
+        final Thread sendReady = new Thread(() -> {
+            final ByteBuffer sayHelloBuffer = ByteBuffer.allocate(1);
+            sayHelloBuffer.put(Server.PLAYER_IS_FOUND);
+            sayHelloBuffer.flip();
 
-                try { client.write(sayHelloBuffer); }
-                catch (final IOException e) { e.printStackTrace(); }
-                catch (final NullPointerException e) {
-                    // TODO: No service running
-                }
+            try { client.write(sayHelloBuffer); }
+            catch (final IOException e) { e.printStackTrace(); }
+            catch (final NullPointerException e) {
+                // TODO: No service running
             }
         });
 
@@ -138,8 +176,8 @@ public final class ClientPlayer extends Player {
             public final void run() {
                 final ByteBuffer sendMoveBuffer = ByteBuffer.allocate(3);
                 sendMoveBuffer.put(Server.PLAYER_MOVED);
-                sendMoveBuffer.put(Server.PLAYER_MOVED_Y, (byte) y);
-                sendMoveBuffer.put(Server.PLAYER_MOVED_X, (byte) x);
+                sendMoveBuffer.put((byte) y);
+                sendMoveBuffer.put((byte) x);
                 sendMoveBuffer.flip();
 
                 try { client.write(sendMoveBuffer); }
@@ -150,6 +188,15 @@ public final class ClientPlayer extends Player {
         sendMove.start();
         try { sendMove.join(); }
         catch (final InterruptedException e) { e.printStackTrace(); }
+    }
+
+    @NonNull
+    @Override
+    public final String toString() {
+        return "ClientPlayer{" +
+                "client=" + client +
+                ", states=" + Arrays.toString(states) +
+                '}';
     }
 
     protected final void startCycle() {
@@ -174,6 +221,25 @@ public final class ClientPlayer extends Player {
         } catch (final IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private final void establishConnection() {
+        final Thread init = new Thread(() -> {
+            try {
+                client = SocketChannel.open();
+                client.connect(new InetSocketAddress(hostName, Server.PORT));
+                new Thread(this::startCycle).start();
+                sendReady();
+            } catch (final IOException e) {
+                e.printStackTrace();
+            } catch (final UnresolvedAddressException e) {
+                Toast.makeText(Player.ApplicationAccessor.activity, R.string.invalid_ip, Toast.LENGTH_LONG).show();
+            }
+        });
+
+        init.start();
+        try { init.join(); }
+        catch (final InterruptedException e) { e.printStackTrace(); }
     }
 
     protected final void setRole() {

@@ -7,6 +7,8 @@ import android.os.IBinder;
 
 import androidx.annotation.NonNull;
 
+import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
+
 import org.jetbrains.annotations.Contract;
 
 public final class MainApplication extends Application {
@@ -29,4 +31,10 @@ public final class MainApplication extends Application {
             serviceBound = false;
         }
     };
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        Player.ApplicationAccessor.application = this;
+    }
 }

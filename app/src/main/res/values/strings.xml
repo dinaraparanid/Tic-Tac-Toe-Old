@@ -12,4 +12,7 @@
     <string name="player_not_found">Player isn’t found. Try later</string>
     <string name="ok">OK</string>
     <string name="invalid_move">Invalid Move</string>
+    <string name="your_ip">Your IP</string>
+    <string name="host_ip">Host\'s IP</string>
+    <string name="invalid_ip">Invalid ip. Try again</string>
 </resources>
