@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -18,17 +19,19 @@ public final class ServerPlayer extends Player {
 
     @NonNls
     @NonNull
+    private static final String TAG = "ServerPlayer";
+
+    @NonNls
+    @NonNull
     static final String COORDINATE_KEY = "coordinate_key";
 
-    @NonNull
-    final MainApplication application;
-
-    public ServerPlayer(
-            @NonNull final MainApplication application,
-            @NonNull final MainActivity activity
-    ) {
-        this.application = application;
+    public ServerPlayer(@NonNull final MainActivity activity) {
         this.activity = activity;
+        registerNoPlayerFoundReceiver();
+        registerGetRoleReceiver();
+        registerCorrectMoveReceiver();
+        registerInvalidMoveReceiver();
+        registerGameFinishedReceiver();
     }
 
     @NonNull
@@ -36,7 +39,10 @@ public final class ServerPlayer extends Player {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(Server.BROADCAST_NO_PLAYER_FOUND)) {
-                activity.sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
+
+                Log.d(TAG, "No player found");
+
+                sendCancelGame();
 
                 new AlertDialog.Builder(activity)
                         .setMessage(R.string.player_not_found)
@@ -53,6 +59,9 @@ public final class ServerPlayer extends Player {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(Server.BROADCAST_ROLE)) {
+
+                Log.d(TAG, "Get role");
+
                 role = intent.getByteExtra(Server.BROADCAST_GET_ROLE, (byte) 0);
                 showRole(activity);
                 initGame();
@@ -66,9 +75,12 @@ public final class ServerPlayer extends Player {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(Server.BROADCAST_CORRECT_MOVE)) {
+
+                Log.d(TAG, "Correct move");
+
                 updateTurn();
 
-                gameFragment.updateTable(
+                gameFragment.get().updateTable(
                         (byte[][]) intent.getSerializableExtra(
                                 Server.BROADCAST_GET_UPDATE_TABLE
                         )
@@ -81,8 +93,10 @@ public final class ServerPlayer extends Player {
     private final BroadcastReceiver invalidMoveReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(Server.BROADCAST_INVALID_MOVE))
-                gameFragment.showInvalidMove();
+            if (intent.getAction().equals(Server.BROADCAST_INVALID_MOVE)) {
+                Log.d(TAG, "Invalid move");
+                gameFragment.get().showInvalidMove();
+            }
         }
     };
 
@@ -90,8 +104,10 @@ public final class ServerPlayer extends Player {
     private final BroadcastReceiver gameFinishedReceiver = new BroadcastReceiver() {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(Server.BROADCAST_GAME_FINISHED))
-                gameFragment.gameFinished();
+            if (intent.getAction().equals(Server.BROADCAST_GAME_FINISHED)) {
+                Log.d(TAG, "Game finished");
+                gameFragment.get().gameFinished();
+            }
         }
     };
 
@@ -137,19 +153,18 @@ public final class ServerPlayer extends Player {
 
     @Override
     public final void sendReady() {
-        if (application.serviceBound) {
+        final MainApplication app = (MainApplication) activity.getApplication();
+
+        if (app.serviceBound) {
             sendCreateGame();
         } else {
-            final Intent runServerIntent = new Intent(application, Server.class);
+            final Intent runServerIntent = new Intent(activity, Server.class);
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                application.startForegroundService(runServerIntent);
-            else
-                application.startService(runServerIntent);
+            activity.startService(runServerIntent);
 
-            application.bindService(
+            activity.bindService(
                     runServerIntent,
-                    application.serviceConnection,
+                    app.serviceConnection,
                     Context.BIND_AUTO_CREATE
             );
         }
@@ -157,18 +172,10 @@ public final class ServerPlayer extends Player {
 
     @Override
     public final void sendMove(final int y, final int x) {
-        application.sendBroadcast(
+        activity.sendBroadcast(
                 new Intent(Server.BROADCAST_SERVER_PLAYER_MOVED)
                         .putExtra(COORDINATE_KEY, new Coordinate(x, y))
         );
-    }
-
-    public final void registerReceivers() {
-        registerNoPlayerFoundReceiver();
-        registerGetRoleReceiver();
-        registerCorrectMoveReceiver();
-        registerInvalidMoveReceiver();
-        registerGameFinishedReceiver();
     }
 
     private final void unregisterReceivers() {
@@ -180,15 +187,15 @@ public final class ServerPlayer extends Player {
     }
 
     private final void sendCreateGame() {
-        application.sendBroadcast(new Intent(Server.BROADCAST_CREATE_GAME));
+        activity.sendBroadcast(new Intent(Server.BROADCAST_CREATE_GAME));
     }
 
-    private final void sendCancelGame() {
-        application.sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
+    protected final void sendCancelGame() {
+        activity.sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
         unregisterReceivers();
     }
 
     private final void sendPlayerDisconnected() {
-        application.sendBroadcast(new Intent(Server.BROADCAST_SERVER_PLAYER_DISCONNECTED));
+        activity.sendBroadcast(new Intent(Server.BROADCAST_SERVER_PLAYER_DISCONNECTED));
     }
 }

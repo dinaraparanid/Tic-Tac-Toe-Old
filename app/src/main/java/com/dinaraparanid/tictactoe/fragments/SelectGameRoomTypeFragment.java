@@ -41,10 +41,8 @@ public final class SelectGameRoomTypeFragment
                 false
         );
 
-        final MainActivity act = (MainActivity) requireActivity();
-
         binding.setViewModel(
-                new SelectGameRoomViewModel(act, (MainApplication) act.getApplication())
+                new SelectGameRoomViewModel((MainActivity) requireActivity())
         );
 
         return binding.getRoot();

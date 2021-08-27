@@ -18,7 +18,7 @@ public final class MainActivity extends AppCompatActivity {
         final ActivityMainBinding binding = DataBindingUtil
                 .setContentView(this, R.layout.activity_main);
 
-        binding.setMainActivityViewModel(new MainActivityViewModel(this));
+        binding.setViewModel(new MainActivityViewModel(this));
         binding.executePendingBindings();
     }
 }

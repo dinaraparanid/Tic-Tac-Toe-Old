@@ -1,7 +1,5 @@
 package com.dinaraparanid.tictactoe.viewmodels;
 
-import android.view.View;
-
 import androidx.annotation.NonNull;
 import androidx.databinding.BaseObservable;
 import androidx.databinding.Bindable;
@@ -40,8 +38,9 @@ public class GameFragmentViewModel extends BaseObservable {
         }).start();
     }
 
+    @NonNull
     @Contract(pure = true)
-    public final byte getTimeLeft() { return timeLeft; }
+    public final String getTimeLeft() { return Byte.toString(timeLeft); }
 
     @Contract(pure = true)
     public final int getButtonImage(final int buttonNumber) {
@@ -63,9 +62,5 @@ public class GameFragmentViewModel extends BaseObservable {
     public final void updateGameTable(@NonNull final byte[][] gameTab) {
         System.arraycopy(gameTab, 0, gameTable, 0, gameTab.length);
         notifyPropertyChanged(BR.gameTable);
-    }
-
-    public final void onButtonClicked(@NonNull final View view) {
-
     }
 }

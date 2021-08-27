@@ -1,9 +1,13 @@
 package com.dinaraparanid.tictactoe;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
+
+import org.jetbrains.annotations.NonNls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -11,10 +15,13 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
 public final class ClientPlayer extends Player {
-    private static final int PORT = 1337;
+
+    @NonNls
+    @NonNull
+    private static final String TAG = "ClientPlayer";
 
     @NonNull
-    final SocketChannel client;
+    SocketChannel client;
 
     @NonNull
     private final State[] states = {
@@ -24,79 +31,142 @@ public final class ClientPlayer extends Player {
             new GameFinishedState()
     };
 
-    public ClientPlayer(@NonNull final MainActivity activity) throws IOException {
+    public ClientPlayer(@NonNull final MainActivity activity) {
         this.activity = activity;
-        client = SocketChannel.open();
-        client.connect(new InetSocketAddress("127.0.0.1", PORT));
 
-        sendReady();
-        startCycle();
+        final Thread init = new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                try {
+                    client = SocketChannel.open();
+
+                    // TODO: dialog with host name
+                    client.connect(new InetSocketAddress("192.168.1.127", Server.PORT));
+
+                    new Thread(ClientPlayer.this::startCycle).start();
+                } catch (final IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        init.start();
+        try { init.join(); }
+        catch (final InterruptedException e) { e.printStackTrace(); }
     }
 
     private final class ShowRoleState extends State {
         ShowRoleState() {
-            super(() -> {
-                setRole();
-                showRole(activity);
-                initGame();
-                startGame();
+            super(new Runnable() {
+                @Override
+                public final void run() {
+                    Log.d(TAG, "Show role");
+
+                    setRole();
+                    activity.runOnUiThread(() -> showRole(activity));
+                    initGame();
+                    startGame();
+                }
             });
         }
     }
 
     private final class CorrectMoveState extends State {
         CorrectMoveState() {
-            super(() -> {
-                updateTurn();
-                gameFragment.updateTable(readTable());
+            super(new Runnable() {
+                @Override
+                public final void run() {
+                    Log.d(TAG, "Correct move");
+
+                    updateTurn();
+                    gameFragment.get().updateTable(readTable());
+                }
             });
         }
     }
 
     private final class InvalidMoveState extends State {
         InvalidMoveState() {
-            super(() -> gameFragment.showInvalidMove());
+            super(new Runnable() {
+                @Override
+                public final void run() {
+                    Log.d(TAG, "Invalid move");
+                    gameFragment.get().showInvalidMove();
+                }
+            });
         }
     }
 
     private final class GameFinishedState extends State {
         GameFinishedState() {
-            super(() -> gameFragment.gameFinished());
+            super(new Runnable() {
+                @Override
+                public final void run() {
+                    Log.d(TAG, "Game Finished");
+                    gameFragment.get().gameFinished();
+                }
+            });
         }
     }
 
     @Override
     public final void sendReady() {
-        final ByteBuffer sayHelloBuffer = ByteBuffer.allocate(1);
-        sayHelloBuffer.put(Server.PLAYER_IS_FOUND);
-        sayHelloBuffer.flip();
+        final Thread sendReady = new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                final ByteBuffer sayHelloBuffer = ByteBuffer.allocate(1);
+                sayHelloBuffer.put(Server.PLAYER_IS_FOUND);
+                sayHelloBuffer.flip();
 
-        try { client.write(sayHelloBuffer); }
-        catch (final IOException e) { e.printStackTrace(); }
+                try { client.write(sayHelloBuffer); }
+                catch (final IOException e) { e.printStackTrace(); }
+                catch (final NullPointerException e) {
+                    // TODO: No service running
+                }
+            }
+        });
+
+        sendReady.start();
+        try { sendReady.join(); }
+        catch (final InterruptedException e) { e.printStackTrace(); }
     }
 
     @Override
     public final void sendMove(final int y, final int x) {
-        final ByteBuffer sendMoveBuffer = ByteBuffer.allocate(3);
-        sendMoveBuffer.put(Server.PLAYER_MOVED);
-        sendMoveBuffer.put(Server.PLAYER_MOVED_Y, (byte) y);
-        sendMoveBuffer.put(Server.PLAYER_MOVED_X, (byte) x);
-        sendMoveBuffer.flip();
+        final Thread sendMove = new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                final ByteBuffer sendMoveBuffer = ByteBuffer.allocate(3);
+                sendMoveBuffer.put(Server.PLAYER_MOVED);
+                sendMoveBuffer.put(Server.PLAYER_MOVED_Y, (byte) y);
+                sendMoveBuffer.put(Server.PLAYER_MOVED_X, (byte) x);
+                sendMoveBuffer.flip();
 
-        try { client.write(sendMoveBuffer); }
-        catch (final IOException e) { e.printStackTrace(); }
+                try { client.write(sendMoveBuffer); }
+                catch (final IOException e) { e.printStackTrace(); }
+            }
+        });
+
+        sendMove.start();
+        try { sendMove.join(); }
+        catch (final InterruptedException e) { e.printStackTrace(); }
     }
 
-    private final void startCycle() {
+    protected final void startCycle() {
         byte command = -1;
 
         try {
             while (command != Server.COMMAND_GAME_FINISH) {
                 final ByteBuffer readBuffer = ByteBuffer.allocate(1);
-                client.read(readBuffer);
-                readBuffer.flip();
 
+                if (client.read(readBuffer) < 0)
+                    continue;
+
+                readBuffer.flip();
                 command = readBuffer.get();
+
+                Log.d(TAG + " COMMAND", Integer.toString(command));
+
                 states[command].run();
             }
 
@@ -106,18 +176,27 @@ public final class ClientPlayer extends Player {
         }
     }
 
-    final void setRole() {
-        final ByteBuffer readBuffer = ByteBuffer.allocate(1);
+    protected final void setRole() {
+        final Thread setRole = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final ByteBuffer readBuffer = ByteBuffer.allocate(1);
 
-        try { client.read(readBuffer); }
-        catch (final IOException e) { e.printStackTrace(); }
+                try { client.read(readBuffer); }
+                catch (final IOException e) { e.printStackTrace(); }
 
-        readBuffer.flip();
-        role = readBuffer.get();
+                readBuffer.flip();
+                role = readBuffer.get();
+            }
+        });
+
+        setRole.start();
+        try { setRole.join(); }
+        catch (final InterruptedException e) { e.printStackTrace(); }
     }
 
     @NonNull
-    final byte[][] readTable() {
+    protected final byte[][] readTable() {
         final ByteBuffer buffer = ByteBuffer.allocate(9);
 
         try { client.read(buffer); }

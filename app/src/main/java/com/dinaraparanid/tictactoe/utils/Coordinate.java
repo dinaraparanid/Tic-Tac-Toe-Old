@@ -1,5 +1,7 @@
 package com.dinaraparanid.tictactoe.utils;
 
+import org.jetbrains.annotations.Contract;
+
 import java.io.Serializable;
 
 public final class Coordinate implements Serializable {
@@ -11,7 +13,9 @@ public final class Coordinate implements Serializable {
         this.y = y;
     }
 
+    @Contract(pure = true)
     public final int getX() { return x; }
 
+    @Contract(pure = true)
     public final int getY() { return y; }
 }

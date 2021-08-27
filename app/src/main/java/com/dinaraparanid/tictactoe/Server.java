@@ -5,8 +5,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.IBinder;
+import android.text.format.Formatter;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -31,19 +34,23 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class Server extends Service {
-    private static final int PORT = 1337;
-    private static final String HOST_NAME = "127.0.0.1";
+
+    @NonNls
+    @NonNull
+    private static final String TAG = "Server";
+
+    static final int PORT = 1337;
 
     static final int gameTableSize = 3; // TODO: create customizable table
 
     @NonNull
-    final AtomicBoolean isGameEnded = new AtomicBoolean(false);
+    protected final AtomicBoolean isGameEnded = new AtomicBoolean(false);
 
     @NonNull
-    byte[][] gameTable = new byte[gameTableSize][gameTableSize]; // 0 -> null, 1 -> x, 2 -> 0
+    protected byte[][] gameTable = new byte[gameTableSize][gameTableSize]; // 0 -> null, 1 -> x, 2 -> 0
 
     @NonNull
-    final AtomicBoolean needToSendTableUpdate = new AtomicBoolean(false);
+    protected final AtomicBoolean needToSendTableUpdate = new AtomicBoolean(false);
 
     // -------------------------------- Receive broadcasts --------------------------------
 
@@ -114,9 +121,9 @@ public final class Server extends Service {
 
     private static final int NO_PLAYER_FOUND = (int) 1e9;
 
-    boolean isClientPlayerConnected = false;
+    protected boolean isClientPlayerConnected = false;
 
-    final class LocalBinder extends Binder {
+    protected final class LocalBinder extends Binder {
         @NonNull
         @Contract(pure = true)
         public final Server getServer() { return Server.this; }
@@ -126,22 +133,26 @@ public final class Server extends Service {
     private final IBinder iBinder = new LocalBinder();
 
     @NonNull
-    private ServerSocketChannel server;
+    protected ServerSocketChannel server;
 
     @NonNull
-    private Selector selector;
+    protected Selector selector;
 
     @NonNull
     private final BroadcastReceiver createGameReceiver = new BroadcastReceiver() {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            int wait = 0;
+            if (intent.getAction().equals(BROADCAST_CREATE_GAME)) {
+                Log.d(TAG, "Create game");
 
-            while (!isClientPlayerConnected && wait < NO_PLAYER_FOUND)
-                wait++;
+                int wait = 0;
 
-            if (wait == NO_PLAYER_FOUND)
-                sendNoPlayerFound();
+                while (!isClientPlayerConnected && wait < NO_PLAYER_FOUND)
+                    wait++;
+
+                if (wait == NO_PLAYER_FOUND)
+                    sendNoPlayerFound();
+            }
         }
     };
 
@@ -149,8 +160,11 @@ public final class Server extends Service {
     private final BroadcastReceiver cancelGameReceiver = new BroadcastReceiver() {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            unregisterReceivers();
-            stopSelf();
+            if (intent.getAction().equals(BROADCAST_CANCEL_GAME)) {
+                Log.d(TAG, "Cancel game");
+                unregisterReceivers();
+                stopSelf();
+            }
         }
     };
 
@@ -158,29 +172,33 @@ public final class Server extends Service {
     private final BroadcastReceiver serverPlayerMovedReceiver = new BroadcastReceiver() {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            final Coordinate coordinate = (Coordinate) intent
-                    .getSerializableExtra(ServerPlayer.COORDINATE_KEY);
+            if (intent.getAction().equals(BROADCAST_SERVER_PLAYER_MOVED)) {
+                Log.d(TAG, "Server player moved");
 
-            if (checkMovement(coordinate)) {
-                gameTable[coordinate.getY()][coordinate.getX()] = 1;
+                final Coordinate coordinate = (Coordinate) intent
+                        .getSerializableExtra(ServerPlayer.COORDINATE_KEY);
 
-                boolean filled = true;
+                if (checkMovement(coordinate)) {
+                    gameTable[coordinate.getY()][coordinate.getX()] = 1;
 
-                for (final byte[] row : gameTable) {
-                    for (final byte cell : row) {
-                        if (cell == 0) {
-                            filled = false;
-                            break;
+                    boolean filled = true;
+
+                    for (final byte[] row : gameTable) {
+                        for (final byte cell : row) {
+                            if (cell == 0) {
+                                filled = false;
+                                break;
+                            }
                         }
                     }
+
+                    if (filled)
+                        isGameEnded.set(true);
+
+                    needToSendTableUpdate.set(true);
+                } else {
+                    sendServerPlayerInvalidMove();
                 }
-
-                if (filled)
-                    isGameEnded.set(true);
-
-                needToSendTableUpdate.set(true);
-            } else {
-                sendServerPlayerInvalidMove();
             }
         }
     };
@@ -198,6 +216,7 @@ public final class Server extends Service {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(BROADCAST_KILL)) {
+                Log.d(TAG, "Kill");
                 unregisterReceivers();
                 stopSelf();
             }
@@ -206,13 +225,25 @@ public final class Server extends Service {
 
     private final class ClientPlayerIsFoundState extends State {
         ClientPlayerIsFoundState() {
-            super(() -> isClientPlayerConnected = true);
+            super(new Runnable() {
+                @Override
+                public final void run() {
+                    Log.d(TAG, "Client player connected");
+                    isClientPlayerConnected = true;
+                }
+            });
         }
     }
 
     private final class SendRolesState extends State {
         SendRolesState(@NonNull final WritableByteChannel client) {
-            super(() -> sendRoles(client));
+            super(new Runnable() {
+                @Override
+                public final void run() {
+                    Log.d(TAG, "Send roles");
+                    sendRoles(client);
+                }
+            });
         }
     }
 
@@ -220,49 +251,85 @@ public final class Server extends Service {
         ClientPlayerIsMovedState(
                 @NonNull final SocketChannel client
         ) {
-            super(() -> {
-                final ByteBuffer buffer = ByteBuffer.allocate(2);
+            super(new Runnable() {
+                @Override
+                public final void run() {
+                    Log.d(TAG, "Client player is moved");
 
-                try { client.read(buffer); }
-                catch (final IOException e) { e.printStackTrace(); }
+                    final ByteBuffer buffer = ByteBuffer.allocate(2);
 
-                buffer.flip();
+                    try { client.read(buffer); }
+                    catch (final IOException e) { e.printStackTrace(); }
 
-                final byte y = buffer.get(PLAYER_MOVED_Y);
-                final byte x = buffer.get(PLAYER_MOVED_X);
+                    buffer.flip();
 
-                if (checkMovement(y, x)) {
-                    gameTable[y][x] = 2;
+                    final byte y = buffer.get(PLAYER_MOVED_Y);
+                    final byte x = buffer.get(PLAYER_MOVED_X);
 
-                    boolean filled = true;
+                    if (checkMovement(y, x)) {
+                        gameTable[y][x] = 2;
 
-                    for (final byte[] row : gameTable) {
-                        for (final byte cell : row) {
-                            if (cell == 0) {
-                                filled = false;
-                                break;
+                        boolean filled = true;
+
+                        for (final byte[] row : gameTable) {
+                            for (final byte cell : row) {
+                                if (cell == 0) {
+                                    filled = false;
+                                    break;
+                                }
                             }
                         }
+
+                        if (filled)
+                            isGameEnded.set(true);
+
+                        sendCorrectMove(client);
+                    } else {
+                        sendClientPlayerInvalidMove(client);
                     }
-
-                    if (filled)
-                        isGameEnded.set(true);
-
-                    sendCorrectMove(client);
-                } else {
-                    sendClientPlayerInvalidMove(client);
                 }
             });
         }
     }
 
-    public final void createServerSocket() throws IOException {
-        server = ServerSocketChannel.open();
-        server.socket().bind(new InetSocketAddress(HOST_NAME, PORT));
-        server.configureBlocking(false);
+    public final void createServerSocket() throws InterruptedException {
+        final String[] hostName = new String[1];
 
-        selector = Selector.open();
-        server.register(selector, SelectionKey.OP_ACCEPT);
+        final Thread getHostName = new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                hostName[0] = Formatter.formatIpAddress(
+                        ((WifiManager) getApplicationContext()
+                                .getSystemService(WIFI_SERVICE))
+                                .getConnectionInfo()
+                                .getIpAddress()
+                );
+            }
+        });
+
+        getHostName.start();
+        getHostName.join();
+
+        try { server = ServerSocketChannel.open(); }
+        catch (final IOException e) { e.printStackTrace(); }
+
+        final Thread init = new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                try {
+                    server.socket().bind(new InetSocketAddress(hostName[0], PORT));
+                    server.configureBlocking(false);
+
+                    selector = Selector.open();
+                    server.register(selector, SelectionKey.OP_ACCEPT);
+                } catch (final IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        init.start();
+        init.join();
     }
 
     @NonNull
@@ -280,8 +347,11 @@ public final class Server extends Service {
         registerServerPlayerDisconnectedReceiver();
         registerKillReceiver();
 
-        try { createServerSocket(); }
-        catch (final IOException e) { e.printStackTrace(); }
+        try {
+            createServerSocket();
+        } catch (final InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -290,7 +360,13 @@ public final class Server extends Service {
             final int flags,
             final int startId
     ) {
-        try { runServer(); } catch (final IOException e) { e.printStackTrace(); }
+        new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                try { runServer(); }
+                catch (final IOException e) { e.printStackTrace(); }
+            }
+        }).start();
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -327,7 +403,7 @@ public final class Server extends Service {
     @NonNull
     private final Intent registerServerPlayerDisconnectedReceiver() {
         return registerReceiver(
-                serverPlayerMovedReceiver,
+                serverPlayerDisconnectedReceiver,
                 new IntentFilter(BROADCAST_SERVER_PLAYER_DISCONNECTED)
         );
     }
@@ -345,7 +421,7 @@ public final class Server extends Service {
         unregisterReceiver(killReceiver);
     }
 
-    private final void runServer() throws IOException {
+    protected final void runServer() throws IOException {
         while (true) {
             selector.select();
             final Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
@@ -417,40 +493,58 @@ public final class Server extends Service {
         final byte serverPlayerRole = (byte) new SecureRandom().nextInt(2);
         final byte clientPlayerRole = (byte) (1 - serverPlayerRole);
 
-        final ByteBuffer buffer = ByteBuffer.allocate(2);
-        buffer.put(COMMAND_SHOW_ROLE);
-        buffer.put(clientPlayerRole);
-        buffer.flip();
-
-        try { client.write(buffer); }
-        catch (final IOException e) { e.printStackTrace(); }
-
         LocalBroadcastManager
                 .getInstance(getApplicationContext())
                 .sendBroadcast(
                         new Intent(BROADCAST_ROLE)
                                 .putExtra(BROADCAST_GET_ROLE, serverPlayerRole)
                 );
+
+        final Thread sendRole = new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                final ByteBuffer buffer = ByteBuffer.allocate(2);
+                buffer.put(COMMAND_SHOW_ROLE);
+                buffer.put(clientPlayerRole);
+                buffer.flip();
+
+                try { client.write(buffer); }
+                catch (final IOException e) { e.printStackTrace(); }
+            }
+        });
+
+        sendRole.start();
+        try { sendRole.join(); }
+        catch (final InterruptedException e) { e.printStackTrace(); }
     }
 
     final void sendCorrectMove(@NonNull final WritableByteChannel client) {
-        final ByteBuffer buffer = ByteBuffer.allocate(10);
-        buffer.put(COMMAND_CORRECT_MOVE);
-
-        // Damn, streams requires API 24 :(
-        for (final byte[] r : gameTable)
-            for (final byte b : r)
-                buffer.put(b);
-
-        try { client.write(buffer); }
-        catch (final IOException e) { e.printStackTrace(); }
-
         LocalBroadcastManager
                 .getInstance(getApplicationContext())
                 .sendBroadcast(
                         new Intent(BROADCAST_CORRECT_MOVE)
-                        .putExtra(BROADCAST_GET_UPDATE_TABLE, gameTable)
+                                .putExtra(BROADCAST_GET_UPDATE_TABLE, gameTable)
                 );
+
+        final Thread sendCorrcetMove = new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                final ByteBuffer buffer = ByteBuffer.allocate(10);
+                buffer.put(COMMAND_CORRECT_MOVE);
+
+                // Damn, streams requires API 24 :(
+                for (final byte[] r : gameTable)
+                    for (final byte b : r)
+                        buffer.put(b);
+
+                try { client.write(buffer); }
+                catch (final IOException e) { e.printStackTrace(); }
+            }
+        });
+
+        sendCorrcetMove.start();
+        try { sendCorrcetMove.join(); }
+        catch (final InterruptedException e) { e.printStackTrace(); }
     }
 
     final void sendServerPlayerInvalidMove() {
@@ -462,20 +556,38 @@ public final class Server extends Service {
     }
 
     static void sendClientPlayerInvalidMove(@NonNull final WritableByteChannel client) {
-        final ByteBuffer buffer = ByteBuffer.allocate(1);
-        buffer.put(COMMAND_INVALID_MOVE);
-        try { client.write(buffer); }
-        catch (final IOException e) { e.printStackTrace(); }
+        final Thread sendInvalid = new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                final ByteBuffer buffer = ByteBuffer.allocate(1);
+                buffer.put(COMMAND_INVALID_MOVE);
+                try { client.write(buffer); }
+                catch (final IOException e) { e.printStackTrace(); }
+            }
+        });
+
+        sendInvalid.start();
+        try { sendInvalid.join(); }
+        catch (final InterruptedException e) { e.printStackTrace(); }
     }
 
     void sendGameFinish(@NonNull final WritableByteChannel client) {
-        final ByteBuffer buffer = ByteBuffer.allocate(1);
-        buffer.put(COMMAND_GAME_FINISH);
-        try { client.write(buffer); }
-        catch (final IOException e) { e.printStackTrace(); }
-
         LocalBroadcastManager
                 .getInstance(getApplicationContext())
                 .sendBroadcast(new Intent(BROADCAST_GAME_FINISHED));
+
+        final Thread finish = new Thread(new Runnable() {
+            @Override
+            public final void run() {
+                final ByteBuffer buffer = ByteBuffer.allocate(1);
+                buffer.put(COMMAND_GAME_FINISH);
+                try { client.write(buffer); }
+                catch (final IOException e) { e.printStackTrace(); }
+            }
+        });
+
+        finish.start();
+        try { finish.join(); }
+        catch (final InterruptedException e) { e.printStackTrace(); }
     }
 }

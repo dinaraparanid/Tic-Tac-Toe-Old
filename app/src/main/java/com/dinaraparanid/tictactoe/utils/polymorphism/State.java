@@ -5,11 +5,11 @@ import androidx.annotation.NonNull;
 public class State {
 
     @NonNull
-    private Runnable action;
+    private final Runnable action;
 
     protected State(@NonNull final Runnable action) { this.action = action; }
 
-    public void run() {
-        new Thread(() -> action.run()).start();
+    public final void run() {
+        action.run();
     }
 }

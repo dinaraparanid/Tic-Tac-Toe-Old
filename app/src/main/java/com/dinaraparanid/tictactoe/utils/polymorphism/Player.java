@@ -12,14 +12,10 @@ import com.dinaraparanid.tictactoe.fragments.GameFragment;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NonNls;
 
-import java.io.NotSerializableException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.lang.ref.WeakReference;
 
 public abstract class Player implements Serializable {
-
-    private static final long serialVersionUID = 3929149860943205098L;
 
     @NonNls
     @NonNull
@@ -32,7 +28,7 @@ public abstract class Player implements Serializable {
     protected MainActivity activity;
 
     @NonNull
-    protected GameFragment gameFragment;
+    protected WeakReference<GameFragment> gameFragment;
 
     public abstract void sendReady();
 
@@ -46,40 +42,25 @@ public abstract class Player implements Serializable {
     }
 
     protected final void initGame() {
-        gameFragment = GameFragment.newInstance(this);
+        gameFragment = new WeakReference<>(GameFragment.newInstance(this));
     }
 
     protected final void startGame() {
         activity.getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.fragment_container, gameFragment)
+                .replace(R.id.fragment_container, gameFragment.get())
                 .addToBackStack(null)
                 .commit();
     }
 
     @Contract(pure = true)
-    public final byte getRole() {
-        return role;
-    }
+    public final byte getRole() { return role; }
 
     @Contract(pure = true)
-    public final boolean isMoving() {
-        return role == turn;
-    }
+    public final boolean isMoving() { return role == turn; }
 
     protected final void updateTurn() {
         turn = (byte)(1 - turn);
-        gameFragment.updatePlayer();
-    }
-
-    @Contract("_ -> fail")
-    private final void readObject(final ObjectInputStream in) throws
-            ClassNotFoundException, NotSerializableException {
-        throw new NotSerializableException(LOCATION);
-    }
-
-    @Contract("_ -> fail")
-    private final void writeObject(final ObjectOutputStream out) throws NotSerializableException {
-        throw new NotSerializableException(LOCATION);
+        gameFragment.get().updatePlayer();
     }
 }

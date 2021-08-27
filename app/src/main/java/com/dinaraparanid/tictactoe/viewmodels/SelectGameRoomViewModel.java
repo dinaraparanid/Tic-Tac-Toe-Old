@@ -9,31 +9,20 @@ import com.dinaraparanid.tictactoe.ServerPlayer;
 
 import org.jetbrains.annotations.Contract;
 
-import java.io.IOException;
-
 public final class SelectGameRoomViewModel {
 
     @NonNull
     private final MainActivity activity;
 
-    @NonNull
-    private final MainApplication application;
-
-    public SelectGameRoomViewModel(
-            @NonNull final MainActivity activity,
-            @NonNull final MainApplication application
-    ) {
+    public SelectGameRoomViewModel(@NonNull final MainActivity activity) {
         this.activity = activity;
-        this.application = application;
     }
 
     public final void startNewGame() {
-        final ServerPlayer player = new ServerPlayer(application, activity);
-        player.registerReceivers();
-        player.sendReady();
+        new ServerPlayer(activity).sendReady();
     }
 
-    public final void connectToGame() throws IOException {
+    public final void connectToGame() {
         new ClientPlayer(activity).sendReady();
     }
 }

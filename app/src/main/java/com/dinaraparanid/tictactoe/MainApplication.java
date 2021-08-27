@@ -7,8 +7,11 @@ import android.os.IBinder;
 
 import androidx.annotation.NonNull;
 
+import org.jetbrains.annotations.Contract;
+
 public final class MainApplication extends Application {
 
+    @Contract(pure = true)
     public final boolean isServiceBound() { return serviceBound; }
 
     boolean serviceBound = false;
