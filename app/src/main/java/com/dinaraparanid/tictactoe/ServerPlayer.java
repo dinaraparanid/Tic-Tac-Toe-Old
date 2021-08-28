@@ -52,7 +52,6 @@ public final class ServerPlayer extends Player {
 
     public ServerPlayer() {
         number = 1;
-        init();
         registerReceivers();
     }
 
@@ -61,8 +60,6 @@ public final class ServerPlayer extends Player {
         this.role = role;
         this.turn = turn;
         this.hostName = hostName;
-
-        init();
         registerReceivers();
     }
 
@@ -122,7 +119,6 @@ public final class ServerPlayer extends Player {
 
                 role = intent.getByteExtra(Server.BROADCAST_GET_ROLE, (byte) 0);
                 showRole(Player.ApplicationAccessor.activity);
-                if (gameFragment.get() == null) init();
                 startGame();
             }
         }
@@ -138,18 +134,9 @@ public final class ServerPlayer extends Player {
 
                 updateTurn();
 
-                final byte[][] table = (byte[][]) intent.getSerializableExtra(
+                gameFragment.get().updateTable((byte[][]) intent.getSerializableExtra(
                         Server.BROADCAST_GET_UPDATE_TABLE
-                );
-
-                final StringBuilder builder = new StringBuilder();
-
-                for (final byte[] row : table)
-                    builder.append(Arrays.toString(row) + " | ");
-
-                Log.d(TAG, "New table: " + builder);
-
-                gameFragment.get().updateTable(table);
+                ));
             }
         }
     };
@@ -266,10 +253,14 @@ public final class ServerPlayer extends Player {
 
     @Override
     public final void sendMove(final int y, final int x) {
-        Player.ApplicationAccessor.activity.getApplicationContext().sendBroadcast(
-                new Intent(Server.BROADCAST_SERVER_PLAYER_MOVED)
-                        .putExtra(COORDINATE_KEY, new Coordinate(x, y))
-        );
+        Log.d(TAG, "Send move");
+
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.activity.getApplicationContext())
+                .sendBroadcast(
+                        new Intent(Server.BROADCAST_SERVER_PLAYER_MOVED)
+                                .putExtra(COORDINATE_KEY, new Coordinate(x, y))
+                );
     }
 
     @NonNls
@@ -300,21 +291,27 @@ public final class ServerPlayer extends Player {
     }
 
     private final void sendCreateGame() {
-        Player.ApplicationAccessor.activity
-                .getApplicationContext()
+        Log.d(TAG, "Send create game");
+
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.activity.getApplicationContext())
                 .sendBroadcast(new Intent(Server.BROADCAST_CREATE_GAME));
     }
 
     protected final void sendCancelGame() {
-        Player.ApplicationAccessor.activity
-                .getApplicationContext()
+        Log.d(TAG, "Send cancel game");
+
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.activity.getApplicationContext())
                 .sendBroadcast(new Intent(Server.BROADCAST_CANCEL_GAME));
         unregisterReceivers();
     }
 
     private final void sendPlayerDisconnected() {
-        Player.ApplicationAccessor.activity
-                .getApplicationContext()
+        Log.d(TAG, "Send player disconnected");
+
+        LocalBroadcastManager
+                .getInstance(Player.ApplicationAccessor.activity.getApplicationContext())
                 .sendBroadcast(new Intent(Server.BROADCAST_SERVER_PLAYER_DISCONNECTED));
         unregisterReceivers();
     }

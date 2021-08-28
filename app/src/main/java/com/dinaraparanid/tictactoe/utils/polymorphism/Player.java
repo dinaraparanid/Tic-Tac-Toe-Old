@@ -54,11 +54,9 @@ public abstract class Player implements Parcelable {
                 .show();
     }
 
-    protected final void init() {
-        gameFragment = new WeakReference<>(GameFragment.newInstance(this));
-    }
-
     protected final void startGame() {
+        gameFragment = new WeakReference<>(GameFragment.newInstance(this));
+
         ApplicationAccessor.activity.getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.fragment_container, gameFragment.get())

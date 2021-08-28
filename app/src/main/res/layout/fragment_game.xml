@@ -56,7 +56,7 @@
             <carbon.widget.LinearLayout
                 android:id="@+id/first_line"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="100dp"
                 android:layout_weight="1"
                 android:divider="@drawable/divider"
                 android:orientation="horizontal"
@@ -64,7 +64,7 @@
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_1"
-                    android:layout_width="wrap_content"
+                    android:layout_width="20dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:clickable="@{view_model.player.moving}"
@@ -74,7 +74,7 @@
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_2"
-                    android:layout_width="wrap_content"
+                    android:layout_width="20dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:scaleType="fitCenter"
@@ -84,7 +84,7 @@
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_3"
-                    android:layout_width="wrap_content"
+                    android:layout_width="20dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:scaleType="fitCenter"
@@ -97,7 +97,7 @@
             <carbon.widget.LinearLayout
                 android:id="@+id/second_line"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="100dp"
                 android:layout_weight="1"
                 android:divider="@drawable/divider"
                 android:orientation="horizontal"
@@ -105,7 +105,7 @@
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_4"
-                    android:layout_width="wrap_content"
+                    android:layout_width="20dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:scaleType="fitCenter"
@@ -115,7 +115,7 @@
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_5"
-                    android:layout_width="wrap_content"
+                    android:layout_width="20dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:scaleType="fitCenter"
@@ -125,7 +125,7 @@
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_6"
-                    android:layout_width="wrap_content"
+                    android:layout_width="20dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:scaleType="fitCenter"
@@ -137,7 +137,7 @@
 
             <carbon.widget.LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="100dp"
                 android:layout_weight="1"
                 android:divider="@drawable/divider"
                 android:orientation="horizontal"
@@ -145,7 +145,7 @@
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_7"
-                    android:layout_width="wrap_content"
+                    android:layout_width="20dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:scaleType="fitCenter"
@@ -155,7 +155,7 @@
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_8"
-                    android:layout_width="wrap_content"
+                    android:layout_width="20dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:scaleType="fitCenter"
@@ -165,7 +165,7 @@
 
                 <carbon.widget.ImageView
                     android:id="@+id/button_9"
-                    android:layout_width="wrap_content"
+                    android:layout_width="20dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:scaleType="fitCenter"

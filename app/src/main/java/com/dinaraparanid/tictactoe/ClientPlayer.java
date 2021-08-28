@@ -63,7 +63,6 @@ public final class ClientPlayer extends Player {
 
     public ClientPlayer() {
         number = 2;
-        init();
 
         new InputDialog.Builder()
                 .setMessage(R.string.host_ip)
@@ -81,8 +80,6 @@ public final class ClientPlayer extends Player {
         this.role = role;
         this.turn = turn;
         this.hostName = hostName;
-
-        init();
         establishConnection();
     }
 
@@ -111,16 +108,7 @@ public final class ClientPlayer extends Player {
                     Log.d(TAG, "Correct move");
 
                     updateTurn();
-
-                    final byte[][] table = readTable();
-                    final StringBuilder builder = new StringBuilder();
-
-                    for (final byte[] row : table)
-                        builder.append(Arrays.toString(row) + " | ");
-
-                    Log.d(TAG, "New table: " + builder);
-
-                    gameFragment.get().updateTable(table);
+                    gameFragment.get().updateTable(readTable());
                 }
             });
         }
@@ -152,6 +140,8 @@ public final class ClientPlayer extends Player {
 
     @Override
     public final void sendReady() {
+        Log.d(TAG, "Send ready");
+
         final Thread sendReady = new Thread(() -> {
             final ByteBuffer sayHelloBuffer = ByteBuffer.allocate(1);
             sayHelloBuffer.put(Server.PLAYER_IS_FOUND);
@@ -171,6 +161,8 @@ public final class ClientPlayer extends Player {
 
     @Override
     public final void sendMove(final int y, final int x) {
+        Log.d(TAG, "Send move");
+
         final Thread sendMove = new Thread(new Runnable() {
             @Override
             public final void run() {

@@ -1,8 +1,11 @@
 package com.dinaraparanid.tictactoe.viewmodels;
 
+import android.content.res.Resources;
+import android.graphics.drawable.Drawable;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.res.ResourcesCompat;
 import androidx.databinding.BaseObservable;
 import androidx.databinding.Bindable;
 
@@ -32,7 +35,8 @@ public class GameFragmentViewModel extends BaseObservable {
 
     public GameFragmentViewModel(@NonNull final Player player, @NonNull final byte[][] gameTable) {
         this.player = player;
-        this.gameTable = gameTable;
+        this.gameTable = new byte[gameTable.length][gameTable.length];
+        System.arraycopy(gameTable, 0, this.gameTable, 0, gameTable.length);
 
         new Thread(() -> {
             while (true) {
@@ -48,16 +52,24 @@ public class GameFragmentViewModel extends BaseObservable {
     public final String getTimeLeft() { return Byte.toString(timeLeft); }
 
     @Contract(pure = true)
-    public final int getButtonImage(final int buttonNumber) {
+    public final Drawable getButtonImage(final int buttonNumber) {
         final int y = buttonNumber / Server.gameTableSize;
         final int x = buttonNumber % Server.gameTableSize;
+        final Resources resources = Player.ApplicationAccessor.application.getResources();
+
 
         if (gameTable[y][x] == 0)
-            return android.R.color.transparent;
+            return ResourcesCompat.getDrawable(resources, android.R.color.transparent, null);
 
-        return player.getNumber() == gameTable[y][x] ?
-                player.getRole() == 0 ? R.drawable.cross : R.drawable.zero :
-                player.getRole() == 0 ? R.drawable.zero : R.drawable.cross;
+        final byte role = player.getRole();
+
+        return ResourcesCompat.getDrawable(
+                resources,
+                player.getNumber() == gameTable[y][x] ?
+                        role == 0 ? R.drawable.cross : R.drawable.zero :
+                        role == 0 ? R.drawable.zero : R.drawable.cross,
+                null
+        );
     }
 
     private final void updateTimeLeft() {
@@ -67,14 +79,6 @@ public class GameFragmentViewModel extends BaseObservable {
 
     public final void updateGameTable(@NonNull final byte[][] gameTab) {
         System.arraycopy(gameTab, 0, gameTable, 0, gameTab.length);
-
-        final StringBuilder builder = new StringBuilder();
-
-        for (final byte[] row : gameTable)
-            builder.append(Arrays.toString(row) + " | ");
-
-        Log.d("TEST", "New table: " + builder);
-
         notifyPropertyChanged(BR._all);
     }
 }

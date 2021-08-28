@@ -1,6 +1,5 @@
 package com.dinaraparanid.tictactoe;
 
-import android.app.Application;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -17,7 +16,6 @@ import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.dinaraparanid.tictactoe.utils.Coordinate;
-import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 
 import org.jetbrains.annotations.Contract;
@@ -34,6 +32,7 @@ import java.nio.channels.WritableByteChannel;
 import java.security.SecureRandom;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class Server extends Service {
 
@@ -46,14 +45,17 @@ public final class Server extends Service {
     public static final int gameTableSize = 3; // TODO: create customizable table
 
     @NonNull
-    protected final AtomicBoolean isGameEnded = new AtomicBoolean(false);
-
-    @NonNull
     // 0 -> null, 1 -> server, 2 -> client
     protected byte[][] gameTable = new byte[gameTableSize][gameTableSize];
 
     @NonNull
-    protected final AtomicBoolean needToSendTableUpdate = new AtomicBoolean(false);
+    protected final AtomicReference<String> hostName = new AtomicReference<>();
+
+    @NonNull
+    protected final AtomicBoolean isGameEnded = new AtomicBoolean();
+
+    @NonNull
+    protected final AtomicReference<SocketChannel> client = new AtomicReference<>();
 
     // -------------------------------- Receive broadcasts --------------------------------
 
@@ -120,8 +122,6 @@ public final class Server extends Service {
     static final byte PLAYER_IS_FOUND = 0;
 
     static final byte PLAYER_MOVED = 1;
-    static final byte PLAYER_MOVED_Y = 2;
-    static final byte PLAYER_MOVED_X = 3;
 
     // -------------------------------- ClientPlayer send commands --------------------------------
 
@@ -192,21 +192,26 @@ public final class Server extends Service {
                 if (checkMovement(coordinate)) {
                     gameTable[coordinate.getY()][coordinate.getX()] = 1;
 
-                    boolean filled = true;
+                    new Thread(() -> {
+                        sendCorrectMove(client.get());
 
-                    for (final byte[] row : gameTable) {
-                        for (final byte cell : row) {
-                            if (cell == 0) {
-                                filled = false;
-                                break;
+                        boolean isFilled = true;
+
+                        for (final byte[] row : gameTable) {
+                            for (final byte cell : row) {
+                                if (cell == 0) {
+                                    isFilled = false;
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    if (filled)
-                        isGameEnded.set(true);
-
-                    needToSendTableUpdate.set(true);
+                        if (isFilled) {
+                            isGameEnded.set(true);
+                            sendGameFinish(client.get());
+                            stopSelf();
+                        }
+                    }).start();
                 } else {
                     sendServerPlayerInvalidMove();
                 }
@@ -253,9 +258,7 @@ public final class Server extends Service {
     }
 
     private final class ClientPlayerIsMovedState extends State {
-        ClientPlayerIsMovedState(
-                @NonNull final SocketChannel client
-        ) {
+        ClientPlayerIsMovedState(@NonNull final SocketChannel client) {
             super(() -> {
                 Log.d(TAG, "Client player is moved");
 
@@ -266,27 +269,29 @@ public final class Server extends Service {
 
                 buffer.flip();
 
-                final byte y = buffer.get(0);
-                final byte x = buffer.get(1);
+                final byte y = buffer.get();
+                final byte x = buffer.get();
 
                 if (checkMovement(y, x)) {
                     gameTable[y][x] = 2;
+                    sendCorrectMove(client);
 
-                    boolean filled = true;
+                    boolean isFilled = true;
 
                     for (final byte[] row : gameTable) {
                         for (final byte cell : row) {
                             if (cell == 0) {
-                                filled = false;
+                                isFilled = false;
                                 break;
                             }
                         }
                     }
 
-                    if (filled)
+                    if (isFilled) {
                         isGameEnded.set(true);
-
-                    sendCorrectMove(client);
+                        sendGameFinish(client);
+                        stopSelf();
+                    }
                 } else {
                     sendClientPlayerInvalidMove(client);
                 }
@@ -295,26 +300,26 @@ public final class Server extends Service {
     }
 
     public final void createServerSocket() throws InterruptedException {
-        final String[] hostName = new String[1];
-
-        final Thread getHostName = new Thread(() -> hostName[0] = Formatter.formatIpAddress(
-                ((WifiManager) getApplicationContext()
-                        .getSystemService(WIFI_SERVICE))
-                        .getConnectionInfo()
-                        .getIpAddress()
+        final Thread getHostName = new Thread(() -> hostName.set(
+                Formatter.formatIpAddress(
+                        ((WifiManager) getApplicationContext()
+                                .getSystemService(WIFI_SERVICE))
+                                .getConnectionInfo()
+                                .getIpAddress()
+                )
         ));
 
         getHostName.start();
         getHostName.join();
 
-        sendIp(hostName[0]);
+        sendIp(hostName.get());
 
         try { server = ServerSocketChannel.open(); }
         catch (final IOException e) { e.printStackTrace(); }
 
         final Thread init = new Thread(() -> {
             try {
-                server.socket().bind(new InetSocketAddress(hostName[0], PORT));
+                server.socket().bind(new InetSocketAddress(hostName.get(), PORT));
                 server.configureBlocking(false);
 
                 selector = Selector.open();
@@ -426,7 +431,7 @@ public final class Server extends Service {
     }
 
     protected final void runServer() throws IOException {
-        while (true) {
+        while (!isGameEnded.get()) {
             selector.select();
             final Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
 
@@ -439,32 +444,24 @@ public final class Server extends Service {
                     client.register(selector, SelectionKey.OP_READ);
                 } else if (key.isReadable()) {
                     final ByteBuffer readerBuffer = ByteBuffer.allocate(1);
-                    final SocketChannel client = (SocketChannel) key.channel();
+                    client.set((SocketChannel) key.channel());
 
-                    if (client.read(readerBuffer) < 0) {
-                        client.close();
+                    if (client.get().read(readerBuffer) < 0) {
+                        client.get().close();
                     } else {
                         readerBuffer.flip();
-
-                        if (isGameEnded.get()) {
-                            sendGameFinish(client);
-                            stopSelf();
-                            return;
-                        }
-
-                        if (needToSendTableUpdate.compareAndSet(true, false))
-                            sendCorrectMove(client);
-
                         final byte command = readerBuffer.get();
+
+                        Log.d(TAG, "Command: " + command);
 
                         switch (command) {
                             case PLAYER_IS_FOUND:
                                 new ClientPlayerIsFoundState().run();
-                                new SendRolesState(client).run();
+                                new SendRolesState(client.get()).run();
                                 break;
 
                             case PLAYER_MOVED:
-                                new ClientPlayerIsMovedState(client).run();
+                                new ClientPlayerIsMovedState(client.get()).run();
                                 break;
 
                             default:
@@ -539,13 +536,15 @@ public final class Server extends Service {
                 );
 
         final Thread sendCorrectMove = new Thread(() -> {
-            final ByteBuffer buffer = ByteBuffer.allocate(10);
+            final ByteBuffer buffer = ByteBuffer.allocate(1 + gameTableSize * gameTableSize);
             buffer.put(COMMAND_CORRECT_MOVE);
 
             // Damn, streams requires API 24 :(
             for (final byte[] r : gameTable)
                 for (final byte b : r)
                     buffer.put(b);
+
+            buffer.flip();
 
             try { client.write(buffer); }
             catch (final IOException e) { e.printStackTrace(); }
@@ -572,6 +571,8 @@ public final class Server extends Service {
         final Thread sendInvalid = new Thread(() -> {
             final ByteBuffer buffer = ByteBuffer.allocate(1);
             buffer.put(COMMAND_INVALID_MOVE);
+            buffer.flip();
+
             try { client.write(buffer); }
             catch (final IOException e) { e.printStackTrace(); }
         });
@@ -582,6 +583,8 @@ public final class Server extends Service {
     }
 
     void sendGameFinish(@NonNull final WritableByteChannel client) {
+        Log.d(TAG, "Game finished");
+
         LocalBroadcastManager
                 .getInstance(getApplicationContext())
                 .sendBroadcast(new Intent(BROADCAST_GAME_FINISHED));
@@ -589,6 +592,8 @@ public final class Server extends Service {
         final Thread finish = new Thread(() -> {
             final ByteBuffer buffer = ByteBuffer.allocate(1);
             buffer.put(COMMAND_GAME_FINISH);
+            buffer.flip();
+
             try { client.write(buffer); }
             catch (final IOException e) { e.printStackTrace(); }
         });
