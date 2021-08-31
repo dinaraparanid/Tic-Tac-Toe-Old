@@ -17,6 +17,7 @@ import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 import org.jetbrains.annotations.Contract;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 public class GameFragmentViewModel extends BaseObservable {
 
@@ -28,7 +29,7 @@ public class GameFragmentViewModel extends BaseObservable {
 
     @NonNull
     @Bindable
-    private byte[][] gameTable;
+    public byte[][] gameTable;
 
     @Bindable
     private byte timeLeft = MAX_TIME;
@@ -51,6 +52,7 @@ public class GameFragmentViewModel extends BaseObservable {
     @Contract(pure = true)
     public final String getTimeLeft() { return Byte.toString(timeLeft); }
 
+    @NonNull
     @Contract(pure = true)
     public final Drawable getButtonImage(final int buttonNumber) {
         final int y = buttonNumber / Server.gameTableSize;
@@ -59,17 +61,21 @@ public class GameFragmentViewModel extends BaseObservable {
 
 
         if (gameTable[y][x] == 0)
-            return ResourcesCompat.getDrawable(resources, android.R.color.transparent, null);
+            return Objects.requireNonNull(ResourcesCompat.getDrawable(
+                    resources,
+                    android.R.color.transparent,
+                    null
+            ));
 
         final byte role = player.getRole();
 
-        return ResourcesCompat.getDrawable(
+        return Objects.requireNonNull(ResourcesCompat.getDrawable(
                 resources,
                 player.getNumber() == gameTable[y][x] ?
                         role == 0 ? R.drawable.cross : R.drawable.zero :
                         role == 0 ? R.drawable.zero : R.drawable.cross,
                 null
-        );
+        ));
     }
 
     private final void updateTimeLeft() {

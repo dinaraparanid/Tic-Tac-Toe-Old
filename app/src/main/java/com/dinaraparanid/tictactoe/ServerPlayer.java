@@ -18,8 +18,6 @@ import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NonNls;
 
-import java.util.Arrays;
-
 public final class ServerPlayer extends Player {
 
     public static final Parcelable.Creator<ServerPlayer> CREATOR = new Parcelable.Creator<ServerPlayer>() {
@@ -134,9 +132,11 @@ public final class ServerPlayer extends Player {
 
                 updateTurn();
 
-                gameFragment.get().updateTable((byte[][]) intent.getSerializableExtra(
+                final byte[][] table = (byte[][]) intent.getSerializableExtra(
                         Server.BROADCAST_GET_UPDATE_TABLE
-                ));
+                );
+
+                gameFragment.get().updateTable(table);
             }
         }
     };
@@ -263,7 +263,7 @@ public final class ServerPlayer extends Player {
                 );
     }
 
-    @NonNls
+    /*@NonNls
     @NonNull
     @Contract(pure = true)
     @Override
@@ -276,7 +276,7 @@ public final class ServerPlayer extends Player {
                 ", invalidMoveReceiver=" + invalidMoveReceiver +
                 ", gameFinishedReceiver=" + gameFinishedReceiver +
                 '}';
-    }
+    }*/
 
     private final void unregisterReceivers() {
         final LocalBroadcastManager manager = LocalBroadcastManager

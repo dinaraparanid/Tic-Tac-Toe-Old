@@ -362,7 +362,7 @@ public final class Server extends Service {
             final int startId
     ) {
         new Thread(() -> {
-            try { runServer(); }
+            try { runBFSM(); }
             catch (final IOException e) { e.printStackTrace(); }
         }).start();
         return super.onStartCommand(intent, flags, startId);
@@ -430,7 +430,9 @@ public final class Server extends Service {
         manager.unregisterReceiver(killReceiver);
     }
 
-    protected final void runServer() throws IOException {
+    /** Like BFG in DOOM, but it's State Machine */
+
+    protected final void runBFSM() throws IOException {
         while (!isGameEnded.get()) {
             selector.select();
             final Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
@@ -439,9 +441,9 @@ public final class Server extends Service {
                 final SelectionKey key = iter.next();
 
                 if (key.isAcceptable()) {
-                    final SocketChannel client = server.accept();
-                    client.configureBlocking(false);
-                    client.register(selector, SelectionKey.OP_READ);
+                    final SocketChannel clientRegister = server.accept();
+                    clientRegister.configureBlocking(false);
+                    clientRegister.register(selector, SelectionKey.OP_READ);
                 } else if (key.isReadable()) {
                     final ByteBuffer readerBuffer = ByteBuffer.allocate(1);
                     client.set((SocketChannel) key.channel());

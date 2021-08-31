@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.databinding.DataBindingUtil;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.dinaraparanid.tictactoe.BR;
 import com.dinaraparanid.tictactoe.R;
@@ -25,11 +26,18 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
     @NonNull
     private static final String PLAYER_KEY = "player";
 
+    @NonNls
+    @NonNull
+    private static final String TABLE_KEY = "table";
+
     @NonNull
     private Player player;
 
     @NonNull
-    private GameFragmentViewModel viewModel;
+    private GameFragmentViewModel mvvmViewModel;
+
+    @NonNull
+    private AndroidXGameFragmentViewModel androidxViewModel;
 
     @NonNull
     public static final GameFragment newInstance(@NonNull final Player player) {
@@ -61,18 +69,41 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
                 false
         );
 
-        viewModel = new GameFragmentViewModel(player, new byte[3][3]);
-        binding.setViewModel(viewModel);
+        mvvmViewModel = new GameFragmentViewModel(player, new byte[3][3]);
+        binding.setViewModel(mvvmViewModel);
+
+        androidxViewModel = new ViewModelProvider(this).get(AndroidXGameFragmentViewModel.class);
+
+        androidxViewModel.load(
+                savedInstanceState == null ? null :
+                (byte[][]) savedInstanceState.getSerializable(TABLE_KEY)
+        );
+
+        binding.getViewModel().updateGameTable(
+                androidxViewModel.gameTableLiveData.getValue()
+        );
 
         return binding.getRoot();
     }
 
+    @Override
+    public final void onSaveInstanceState(@NonNull final Bundle outState) {
+        outState.putSerializable(TABLE_KEY, mvvmViewModel.gameTable);
+        super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    public final void onResume() {
+        super.onResume();
+        player.initGame(this);
+    }
+
     public final void updatePlayer() {
-        viewModel.notifyPropertyChanged(BR.player);
+        mvvmViewModel.notifyPropertyChanged(BR.player);
     }
 
     public final void updateTable(@NonNull final byte[][] gameTable) {
-        viewModel.updateGameTable(gameTable);
+        mvvmViewModel.updateGameTable(gameTable);
     }
 
     public final void showInvalidMove() {

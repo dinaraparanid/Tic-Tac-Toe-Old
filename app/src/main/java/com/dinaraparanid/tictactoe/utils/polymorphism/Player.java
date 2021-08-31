@@ -6,10 +6,12 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
+import androidx.databinding.Bindable;
 
 import com.dinaraparanid.tictactoe.MainActivity;
 import com.dinaraparanid.tictactoe.MainApplication;
 import com.dinaraparanid.tictactoe.R;
+import com.dinaraparanid.tictactoe.Server;
 import com.dinaraparanid.tictactoe.fragments.GameFragment;
 
 import org.jetbrains.annotations.Contract;
@@ -70,6 +72,10 @@ public abstract class Player implements Parcelable {
     protected final void updateTurn() {
         turn = (byte)(1 - turn);
         gameFragment.get().updatePlayer();
+    }
+
+    public final void initGame(@NonNull final GameFragment gameFragment) {
+        this.gameFragment = new WeakReference<>(gameFragment);
     }
 
     public static final class ApplicationAccessor {
