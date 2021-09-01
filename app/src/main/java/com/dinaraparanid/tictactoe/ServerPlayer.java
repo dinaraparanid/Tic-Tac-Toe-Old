@@ -159,6 +159,7 @@ public final class ServerPlayer extends Player {
             if (intent.getAction().equals(Server.BROADCAST_GAME_FINISHED)) {
                 Log.d(TAG, "Game finished");
                 gameFragment.get().gameFinished();
+                unregisterReceivers();
             }
         }
     };
@@ -228,6 +229,8 @@ public final class ServerPlayer extends Player {
 
     @Override
     public final void sendReady() {
+        Log.d(TAG, "Send ready");
+
         final MainApplication app =
                 (MainApplication) Player.ApplicationAccessor.activity.getApplication();
 
@@ -263,7 +266,7 @@ public final class ServerPlayer extends Player {
                 );
     }
 
-    /*@NonNls
+    @NonNls
     @NonNull
     @Contract(pure = true)
     @Override
@@ -276,9 +279,9 @@ public final class ServerPlayer extends Player {
                 ", invalidMoveReceiver=" + invalidMoveReceiver +
                 ", gameFinishedReceiver=" + gameFinishedReceiver +
                 '}';
-    }*/
+    }
 
-    private final void unregisterReceivers() {
+    protected final void unregisterReceivers() {
         final LocalBroadcastManager manager = LocalBroadcastManager
                 .getInstance(Player.ApplicationAccessor.application.getApplicationContext());
 

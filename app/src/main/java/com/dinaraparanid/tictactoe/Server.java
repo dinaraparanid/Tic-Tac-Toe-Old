@@ -130,9 +130,9 @@ public final class Server extends Service {
     static final byte COMMAND_INVALID_MOVE = 2;
     static final byte COMMAND_GAME_FINISH = 3;
 
-    private static final int NO_PLAYER_FOUND = (int) 1e9;
+    private static final long NO_PLAYER_FOUND = Long.MAX_VALUE;
 
-    protected boolean isClientPlayerConnected = false;
+    protected AtomicBoolean isClientPlayerConnected = new AtomicBoolean();
 
     protected final class LocalBinder extends Binder {
         @NonNull
@@ -155,14 +155,33 @@ public final class Server extends Service {
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(BROADCAST_CREATE_GAME)) {
                 Log.d(TAG, "Create game");
+                sendIp(hostName.get());
 
-                int wait = 0;
+                isGameEnded.set(false);
+                isClientPlayerConnected.set(false);
 
-                while (!isClientPlayerConnected && wait < NO_PLAYER_FOUND)
-                    wait++;
+                System.arraycopy(
+                        new byte[gameTableSize][gameTableSize],
+                        0,
+                        gameTable,
+                        0,
+                        gameTable.length
+                );
 
-                if (wait == NO_PLAYER_FOUND)
-                    sendNoPlayerFound();
+                new Thread(() -> {
+                    try { runBFSM(); }
+                    catch (final IOException e) { e.printStackTrace(); }
+                }).start();
+
+                new Thread(() -> {
+                    long wait = 0;
+
+                    while (!isClientPlayerConnected.get() && wait < NO_PLAYER_FOUND)
+                        wait++;
+
+                    if (wait == NO_PLAYER_FOUND)
+                        sendNoPlayerFound();
+                }).start();
             }
         }
     };
@@ -243,7 +262,7 @@ public final class Server extends Service {
         ClientPlayerIsFoundState() {
             super(() -> {
                 Log.d(TAG, "Client player connected");
-                isClientPlayerConnected = true;
+                isClientPlayerConnected.set(true);
             });
         }
     }

@@ -30,7 +30,7 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
     @NonNull
     private static final String TABLE_KEY = "table";
 
-    @NonNull
+    @Nullable
     private Player player;
 
     @NonNull
@@ -96,6 +96,12 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
     public final void onResume() {
         super.onResume();
         player.initGame(this);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        player = null;
     }
 
     public final void updatePlayer() {

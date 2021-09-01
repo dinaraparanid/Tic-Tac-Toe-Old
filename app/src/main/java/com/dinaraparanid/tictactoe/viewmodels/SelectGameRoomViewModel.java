@@ -4,10 +4,7 @@ import androidx.annotation.NonNull;
 
 import com.dinaraparanid.tictactoe.ClientPlayer;
 import com.dinaraparanid.tictactoe.MainActivity;
-import com.dinaraparanid.tictactoe.MainApplication;
 import com.dinaraparanid.tictactoe.ServerPlayer;
-
-import org.jetbrains.annotations.Contract;
 
 public final class SelectGameRoomViewModel {
 
@@ -18,9 +15,7 @@ public final class SelectGameRoomViewModel {
         this.activity = activity;
     }
 
-    public final void startNewGame() {
-        new ServerPlayer().sendReady();
-    }
+    public final void startNewGame() { new ServerPlayer().sendReady(); }
 
     public final void connectToGame() { new ClientPlayer(); }
 }
