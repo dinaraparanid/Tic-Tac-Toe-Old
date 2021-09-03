@@ -17,6 +17,7 @@ import com.dinaraparanid.tictactoe.fragments.GameFragment;
 import org.jetbrains.annotations.Contract;
 
 import java.lang.ref.WeakReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class Player implements Parcelable {
 
@@ -24,6 +25,7 @@ public abstract class Player implements Parcelable {
     protected byte turn = 0;
     public byte number;
     protected String hostName;
+    protected final AtomicBoolean isPlaying = new AtomicBoolean();
 
     @NonNull
     protected WeakReference<GameFragment> gameFragment;
@@ -49,6 +51,8 @@ public abstract class Player implements Parcelable {
 
     public abstract void sendMove(final int y, final int x);
 
+    public final boolean isPlaying() { return isPlaying.get(); }
+
     protected final void showRole(@NonNull final Context context) {
         new AlertDialog.Builder(context)
                 .setCancelable(true)
@@ -57,6 +61,7 @@ public abstract class Player implements Parcelable {
     }
 
     protected final void startGame() {
+        isPlaying.set(true);
         gameFragment = new WeakReference<>(GameFragment.newInstance(this));
 
         ApplicationAccessor.activity.getSupportFragmentManager()

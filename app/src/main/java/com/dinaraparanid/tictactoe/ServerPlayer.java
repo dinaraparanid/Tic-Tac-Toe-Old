@@ -158,6 +158,7 @@ public final class ServerPlayer extends Player {
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(Server.BROADCAST_GAME_FINISHED)) {
                 Log.d(TAG, "Game finished");
+                isPlaying.set(false);
                 gameFragment.get().gameFinished();
                 unregisterReceivers();
             }

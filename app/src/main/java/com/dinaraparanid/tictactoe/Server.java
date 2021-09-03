@@ -31,8 +31,14 @@ import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
 import java.security.SecureRandom;
 import java.util.Iterator;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public final class Server extends Service {
 
@@ -56,6 +62,9 @@ public final class Server extends Service {
 
     @NonNull
     protected final AtomicReference<SocketChannel> client = new AtomicReference<>();
+
+    @NonNull
+    protected final ExecutorService executor = Executors.newCachedThreadPool();
 
     // -------------------------------- Receive broadcasts --------------------------------
 
@@ -173,15 +182,28 @@ public final class Server extends Service {
                     catch (final IOException e) { e.printStackTrace(); }
                 }).start();
 
-                new Thread(() -> {
-                    long wait = 0;
+                executor.submit(() -> {
+                    final Lock lock = new ReentrantLock();
+                    final Condition noClientCondition = lock.newCondition();
 
-                    while (!isClientPlayerConnected.get() && wait < NO_PLAYER_FOUND)
-                        wait++;
+                    lock.lock();
 
-                    if (wait == NO_PLAYER_FOUND)
-                        sendNoPlayerFound();
-                }).start();
+                    try {
+                        long await = 0;
+
+                        if(!isClientPlayerConnected.get())
+                            await = noClientCondition.awaitNanos(NO_PLAYER_FOUND);
+
+                        if (await <= 0) {
+                            sendNoPlayerFound();
+                            stop();
+                        }
+                    } catch (final InterruptedException e) {
+                        e.printStackTrace();
+                    } finally {
+                        lock.unlock();
+                    }
+                });
             }
         }
     };
@@ -192,8 +214,7 @@ public final class Server extends Service {
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(BROADCAST_CANCEL_GAME)) {
                 Log.d(TAG, "Cancel game");
-                unregisterReceivers();
-                stopSelf();
+                stop();
             }
         }
     };
@@ -211,8 +232,12 @@ public final class Server extends Service {
                 if (checkMovement(coordinate)) {
                     gameTable[coordinate.getY()][coordinate.getX()] = 1;
 
-                    new Thread(() -> {
-                        sendCorrectMove(client.get());
+                    executor.execute(() -> {
+                        try {
+                            sendCorrectMove(client.get());
+                        } catch (final ExecutionException | InterruptedException e) {
+                            e.printStackTrace();
+                        }
 
                         boolean isFilled = true;
 
@@ -227,10 +252,14 @@ public final class Server extends Service {
 
                         if (isFilled) {
                             isGameEnded.set(true);
-                            sendGameFinish(client.get());
-                            stopSelf();
+
+                            try {
+                                sendGameFinish(client.get());
+                            } catch (final ExecutionException | InterruptedException e) {
+                                e.printStackTrace();
+                            }
                         }
-                    }).start();
+                    });
                 } else {
                     sendServerPlayerInvalidMove();
                 }
@@ -252,8 +281,7 @@ public final class Server extends Service {
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
             if (intent.getAction().equals(BROADCAST_KILL)) {
                 Log.d(TAG, "Kill");
-                unregisterReceivers();
-                stopSelf();
+                stop();
             }
         }
     };
@@ -271,7 +299,11 @@ public final class Server extends Service {
         SendRolesState(@NonNull final WritableByteChannel client) {
             super(() -> {
                 Log.d(TAG, "Send roles");
-                sendRoles(client);
+                try {
+                    sendRoles(client);
+                } catch (final ExecutionException | InterruptedException e) {
+                    e.printStackTrace();
+                }
             });
         }
     }
@@ -293,7 +325,12 @@ public final class Server extends Service {
 
                 if (checkMovement(y, x)) {
                     gameTable[y][x] = 2;
-                    sendCorrectMove(client);
+
+                    try {
+                        sendCorrectMove(client);
+                    } catch (final ExecutionException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
 
                     boolean isFilled = true;
 
@@ -308,35 +345,42 @@ public final class Server extends Service {
 
                     if (isFilled) {
                         isGameEnded.set(true);
-                        sendGameFinish(client);
-                        stopSelf();
+
+                        try {
+                            sendGameFinish(client);
+                        } catch (final ExecutionException | InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
+                        stop();
                     }
                 } else {
-                    sendClientPlayerInvalidMove(client);
+                    try {
+                        sendClientPlayerInvalidMove(client);
+                    } catch (final ExecutionException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
             });
         }
     }
 
-    public final void createServerSocket() throws InterruptedException {
-        final Thread getHostName = new Thread(() -> hostName.set(
+    protected final void createServerSocket() throws ExecutionException, InterruptedException {
+        executor.submit(() -> hostName.set(
                 Formatter.formatIpAddress(
                         ((WifiManager) getApplicationContext()
                                 .getSystemService(WIFI_SERVICE))
                                 .getConnectionInfo()
                                 .getIpAddress()
                 )
-        ));
-
-        getHostName.start();
-        getHostName.join();
+        )).get();
 
         sendIp(hostName.get());
 
         try { server = ServerSocketChannel.open(); }
         catch (final IOException e) { e.printStackTrace(); }
 
-        final Thread init = new Thread(() -> {
+        executor.submit(() -> {
             try {
                 server.socket().bind(new InetSocketAddress(hostName.get(), PORT));
                 server.configureBlocking(false);
@@ -346,10 +390,7 @@ public final class Server extends Service {
             } catch (final IOException e) {
                 e.printStackTrace();
             }
-        });
-
-        init.start();
-        init.join();
+        }).get();
     }
 
     @NonNull
@@ -369,7 +410,7 @@ public final class Server extends Service {
 
         try {
             createServerSocket();
-        } catch (final InterruptedException e) {
+        } catch (final InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
     }
@@ -438,7 +479,7 @@ public final class Server extends Service {
                 );
     }
 
-    final void unregisterReceivers() {
+    protected final void unregisterReceivers() {
         final LocalBroadcastManager manager = LocalBroadcastManager
                 .getInstance(getApplicationContext());
 
@@ -496,12 +537,12 @@ public final class Server extends Service {
         }
     }
 
-    final boolean checkMovement(@NonNull final Coordinate coordinate) {
+    protected final boolean checkMovement(@NonNull final Coordinate coordinate) {
         return gameTable[coordinate.getY()][coordinate.getX()] == 0;
     }
 
     @Contract(pure = true)
-    final boolean checkMovement(final byte y, final byte x) { return gameTable[y][x] == 0; }
+    protected final boolean checkMovement(final byte y, final byte x) { return gameTable[y][x] == 0; }
 
     protected final void sendIp(@NonNull final String ip) {
         Log.d(TAG, "Send IP");
@@ -520,7 +561,8 @@ public final class Server extends Service {
                 .sendBroadcast(new Intent(BROADCAST_NO_PLAYER_FOUND));
     }
 
-    final void sendRoles(@NonNull final WritableByteChannel client) {
+    protected final void sendRoles(@NonNull final WritableByteChannel client)
+            throws ExecutionException, InterruptedException {
         final byte serverPlayerRole = (byte) new SecureRandom().nextInt(2);
         final byte clientPlayerRole = (byte) (1 - serverPlayerRole);
 
@@ -531,7 +573,7 @@ public final class Server extends Service {
                                 .putExtra(BROADCAST_GET_ROLE, serverPlayerRole)
                 );
 
-        final Thread sendRole = new Thread(() -> {
+        executor.submit(() -> {
             final ByteBuffer buffer = ByteBuffer.allocate(2);
             buffer.put(COMMAND_SHOW_ROLE);
             buffer.put(clientPlayerRole);
@@ -539,14 +581,11 @@ public final class Server extends Service {
 
             try { client.write(buffer); }
             catch (final IOException e) { e.printStackTrace(); }
-        });
-
-        sendRole.start();
-        try { sendRole.join(); }
-        catch (final InterruptedException e) { e.printStackTrace(); }
+        }).get();
     }
 
-    final void sendCorrectMove(@NonNull final WritableByteChannel client) {
+    protected final void sendCorrectMove(@NonNull final WritableByteChannel client)
+            throws ExecutionException, InterruptedException {
         Log.d(TAG, "Send correct move");
 
         LocalBroadcastManager
@@ -556,7 +595,7 @@ public final class Server extends Service {
                                 .putExtra(BROADCAST_GET_UPDATE_TABLE, gameTable)
                 );
 
-        final Thread sendCorrectMove = new Thread(() -> {
+        executor.submit(() -> {
             final ByteBuffer buffer = ByteBuffer.allocate(1 + gameTableSize * gameTableSize);
             buffer.put(COMMAND_CORRECT_MOVE);
 
@@ -569,14 +608,10 @@ public final class Server extends Service {
 
             try { client.write(buffer); }
             catch (final IOException e) { e.printStackTrace(); }
-        });
-
-        sendCorrectMove.start();
-        try { sendCorrectMove.join(); }
-        catch (final InterruptedException e) { e.printStackTrace(); }
+        }).get();
     }
 
-    final void sendServerPlayerInvalidMove() {
+    protected final void sendServerPlayerInvalidMove() {
         Log.d(TAG, "Send server invalid move");
 
         LocalBroadcastManager
@@ -586,41 +621,40 @@ public final class Server extends Service {
                 );
     }
 
-    static void sendClientPlayerInvalidMove(@NonNull final WritableByteChannel client) {
+    protected void sendClientPlayerInvalidMove(@NonNull final WritableByteChannel client)
+            throws ExecutionException, InterruptedException {
         Log.d(TAG, "Send client invalid move");
 
-        final Thread sendInvalid = new Thread(() -> {
+        executor.submit(() -> {
             final ByteBuffer buffer = ByteBuffer.allocate(1);
             buffer.put(COMMAND_INVALID_MOVE);
             buffer.flip();
 
             try { client.write(buffer); }
             catch (final IOException e) { e.printStackTrace(); }
-        });
-
-        sendInvalid.start();
-        try { sendInvalid.join(); }
-        catch (final InterruptedException e) { e.printStackTrace(); }
+        }).get();
     }
 
-    void sendGameFinish(@NonNull final WritableByteChannel client) {
+    protected void sendGameFinish(@NonNull final WritableByteChannel client)
+            throws ExecutionException, InterruptedException {
         Log.d(TAG, "Game finished");
 
         LocalBroadcastManager
                 .getInstance(getApplicationContext())
                 .sendBroadcast(new Intent(BROADCAST_GAME_FINISHED));
 
-        final Thread finish = new Thread(() -> {
+        executor.submit(() -> {
             final ByteBuffer buffer = ByteBuffer.allocate(1);
             buffer.put(COMMAND_GAME_FINISH);
             buffer.flip();
 
             try { client.write(buffer); }
             catch (final IOException e) { e.printStackTrace(); }
-        });
+        }).get();
+    }
 
-        finish.start();
-        try { finish.join(); }
-        catch (final InterruptedException e) { e.printStackTrace(); }
+    protected final void stop() {
+        unregisterReceivers();
+        stopSelf();
     }
 }

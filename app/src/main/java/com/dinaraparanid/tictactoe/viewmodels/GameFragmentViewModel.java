@@ -40,7 +40,7 @@ public class GameFragmentViewModel extends BaseObservable {
         System.arraycopy(gameTable, 0, this.gameTable, 0, gameTable.length);
 
         new Thread(() -> {
-            while (true) {
+            while (player.isPlaying()) {
                 updateTimeLeft();
                 try { Thread.sleep(1000); }
                 catch (final InterruptedException e) { break; }

@@ -9,7 +9,5 @@ public class State {
 
     protected State(@NonNull final Runnable action) { this.action = action; }
 
-    public final void run() {
-        action.run();
-    }
+    public final void run() { action.run(); }
 }

@@ -19,6 +19,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnresolvedAddressException;
 import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class ClientPlayer extends Player {
 
@@ -41,9 +44,7 @@ public final class ClientPlayer extends Player {
         @NonNull
         @Contract(value = "_ -> new", pure = true)
         @Override
-        public ClientPlayer[] newArray(final int size) {
-            return new ClientPlayer[0];
-        }
+        public ClientPlayer[] newArray(final int size) { return new ClientPlayer[0]; }
     };
 
     @NonNull
@@ -60,6 +61,7 @@ public final class ClientPlayer extends Player {
             new GameFinishedState()
     };
 
+    protected final ExecutorService executor = Executors.newCachedThreadPool();
 
     public ClientPlayer() {
         number = 2;
@@ -68,7 +70,13 @@ public final class ClientPlayer extends Player {
                 .setMessage(R.string.host_ip)
                 .setOkAction(param -> {
                     hostName = param;
-                    establishConnection();
+
+                    try {
+                        establishConnection();
+                    } catch (final ExecutionException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
                     return null;
                 })
                 .build()
@@ -80,7 +88,12 @@ public final class ClientPlayer extends Player {
         this.role = role;
         this.turn = turn;
         this.hostName = hostName;
-        establishConnection();
+
+        try {
+            establishConnection();
+        } catch (final ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     private final class ShowRoleState extends State {
@@ -90,10 +103,16 @@ public final class ClientPlayer extends Player {
                 public final void run() {
                     Log.d(TAG, "Show role");
 
-                    setRole();
+                    try {
+                        setRole();
+                    } catch (final ExecutionException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
                     Player.ApplicationAccessor.activity.runOnUiThread(
                             () -> showRole(Player.ApplicationAccessor.activity)
                     );
+
                     startGame();
                 }
             });
@@ -106,7 +125,6 @@ public final class ClientPlayer extends Player {
                 @Override
                 public final void run() {
                     Log.d(TAG, "Correct move");
-
                     updateTurn();
                     gameFragment.get().updateTable(readTable());
                 }
@@ -132,6 +150,7 @@ public final class ClientPlayer extends Player {
                 @Override
                 public final void run() {
                     Log.d(TAG, "Game Finished");
+                    isPlaying.set(false);
                     gameFragment.get().gameFinished();
                 }
             });
@@ -142,30 +161,29 @@ public final class ClientPlayer extends Player {
     public final void sendReady() {
         Log.d(TAG, "Send ready");
 
-        final Thread sendReady = new Thread(() -> {
-            final ByteBuffer sayHelloBuffer = ByteBuffer.allocate(1);
-            sayHelloBuffer.put(Server.PLAYER_IS_FOUND);
-            sayHelloBuffer.flip();
+        try {
+            executor.submit(() -> {
+                final ByteBuffer sayHelloBuffer = ByteBuffer.allocate(1);
+                sayHelloBuffer.put(Server.PLAYER_IS_FOUND);
+                sayHelloBuffer.flip();
 
-            try { client.write(sayHelloBuffer); }
-            catch (final IOException e) { e.printStackTrace(); }
-            catch (final NullPointerException e) {
-                // TODO: No service running
-            }
-        });
-
-        sendReady.start();
-        try { sendReady.join(); }
-        catch (final InterruptedException e) { e.printStackTrace(); }
+                try { client.write(sayHelloBuffer); }
+                catch (final IOException e) { e.printStackTrace(); }
+                catch (final NullPointerException e) {
+                    // TODO: No service running
+                }
+            }).get();
+        } catch (final ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public final void sendMove(final int y, final int x) {
         Log.d(TAG, "Send move");
 
-        final Thread sendMove = new Thread(new Runnable() {
-            @Override
-            public final void run() {
+        try {
+            executor.submit(() -> {
                 final ByteBuffer sendMoveBuffer = ByteBuffer.allocate(3);
                 sendMoveBuffer.put(Server.PLAYER_MOVED);
                 sendMoveBuffer.put((byte) y);
@@ -174,14 +192,13 @@ public final class ClientPlayer extends Player {
 
                 try { client.write(sendMoveBuffer); }
                 catch (final IOException e) { e.printStackTrace(); }
-            }
-        });
-
-        sendMove.start();
-        try { sendMove.join(); }
-        catch (final InterruptedException e) { e.printStackTrace(); }
+            }).get();
+        } catch (final ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
+    @NonNls
     @NonNull
     @Override
     public final String toString() {
@@ -215,8 +232,8 @@ public final class ClientPlayer extends Player {
         }
     }
 
-    private final void establishConnection() {
-        final Thread init = new Thread(() -> {
+    private final void establishConnection() throws ExecutionException, InterruptedException {
+        executor.submit(() -> {
             try {
                 client = SocketChannel.open();
                 client.connect(new InetSocketAddress(hostName, Server.PORT));
@@ -225,17 +242,17 @@ public final class ClientPlayer extends Player {
             } catch (final IOException e) {
                 e.printStackTrace();
             } catch (final UnresolvedAddressException e) {
-                Toast.makeText(Player.ApplicationAccessor.activity, R.string.invalid_ip, Toast.LENGTH_LONG).show();
+                Toast.makeText(
+                        Player.ApplicationAccessor.activity,
+                        R.string.invalid_ip,
+                        Toast.LENGTH_LONG
+                ).show();
             }
-        });
-
-        init.start();
-        try { init.join(); }
-        catch (final InterruptedException e) { e.printStackTrace(); }
+        }).get();
     }
 
-    protected final void setRole() {
-        final Thread setRole = new Thread(new Runnable() {
+    protected final void setRole() throws ExecutionException, InterruptedException {
+        executor.submit(new Runnable() {
             @Override
             public void run() {
                 final ByteBuffer readBuffer = ByteBuffer.allocate(1);
@@ -246,11 +263,7 @@ public final class ClientPlayer extends Player {
                 readBuffer.flip();
                 role = readBuffer.get();
             }
-        });
-
-        setRole.start();
-        try { setRole.join(); }
-        catch (final InterruptedException e) { e.printStackTrace(); }
+        }).get();
     }
 
     @NonNull
