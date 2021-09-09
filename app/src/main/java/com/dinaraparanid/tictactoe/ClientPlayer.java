@@ -13,11 +13,6 @@ import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NonNls;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
-import java.nio.channels.UnresolvedAddressException;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -48,10 +43,10 @@ public final class ClientPlayer extends Player {
     };
 
     @NonNull
-    private String hostName;
+    protected ClientPlayerNative clientPlayerNative;
 
     @NonNull
-    SocketChannel client;
+    private String hostName;
 
     @NonNull
     private final State[] states = {
@@ -61,6 +56,7 @@ public final class ClientPlayer extends Player {
             new GameFinishedState()
     };
 
+    @NonNull
     protected final ExecutorService executor = Executors.newCachedThreadPool();
 
     public ClientPlayer() {
@@ -126,7 +122,7 @@ public final class ClientPlayer extends Player {
                 public final void run() {
                     Log.d(TAG, "Correct move");
                     updateTurn();
-                    gameFragment.get().updateTable(readTable());
+                    gameFragment.get().updateTable(clientPlayerNative.readTable());
                 }
             });
         }
@@ -151,6 +147,7 @@ public final class ClientPlayer extends Player {
                 public final void run() {
                     Log.d(TAG, "Game Finished");
                     isPlaying.set(false);
+                    clientPlayerNative.drop();
                     gameFragment.get().gameFinished();
                 }
             });
@@ -162,17 +159,7 @@ public final class ClientPlayer extends Player {
         Log.d(TAG, "Send ready");
 
         try {
-            executor.submit(() -> {
-                final ByteBuffer sayHelloBuffer = ByteBuffer.allocate(1);
-                sayHelloBuffer.put(Server.PLAYER_IS_FOUND);
-                sayHelloBuffer.flip();
-
-                try { client.write(sayHelloBuffer); }
-                catch (final IOException e) { e.printStackTrace(); }
-                catch (final NullPointerException e) {
-                    // TODO: No service running
-                }
-            }).get();
+            executor.submit(() -> clientPlayerNative.sendReady()).get();
         } catch (final ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -183,16 +170,7 @@ public final class ClientPlayer extends Player {
         Log.d(TAG, "Send move");
 
         try {
-            executor.submit(() -> {
-                final ByteBuffer sendMoveBuffer = ByteBuffer.allocate(3);
-                sendMoveBuffer.put(Server.PLAYER_MOVED);
-                sendMoveBuffer.put((byte) y);
-                sendMoveBuffer.put((byte) x);
-                sendMoveBuffer.flip();
-
-                try { client.write(sendMoveBuffer); }
-                catch (final IOException e) { e.printStackTrace(); }
-            }).get();
+            executor.submit(() -> clientPlayerNative.sendMove((byte) y, (byte) x)).get();
         } catch (final ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -203,51 +181,36 @@ public final class ClientPlayer extends Player {
     @Override
     public final String toString() {
         return "ClientPlayer{" +
-                "client=" + client +
-                ", states=" + Arrays.toString(states) +
+                "states=" + Arrays.toString(states) +
                 '}';
     }
 
     protected final void startCycle() {
         byte command = -1;
 
-        try {
-            while (command != Server.COMMAND_GAME_FINISH) {
-                final ByteBuffer readBuffer = ByteBuffer.allocate(1);
-
-                if (client.read(readBuffer) < 0)
-                    continue;
-
-                readBuffer.flip();
-                command = readBuffer.get();
-
-                Log.d(TAG + " COMMAND", Integer.toString(command));
-
-                states[command].run();
-            }
-
-            client.close();
-        } catch (final IOException e) {
-            e.printStackTrace();
+        while (command != Server.COMMAND_GAME_FINISH) {
+            command = clientPlayerNative.readCommand();
+            Log.d(TAG + " COMMAND", Integer.toString(command));
+            states[command].run();
         }
     }
 
     private final void establishConnection() throws ExecutionException, InterruptedException {
         executor.submit(() -> {
-            try {
-                client = SocketChannel.open();
-                client.connect(new InetSocketAddress(hostName, Server.PORT));
-                new Thread(this::startCycle).start();
-                sendReady();
-            } catch (final IOException e) {
-                e.printStackTrace();
-            } catch (final UnresolvedAddressException e) {
+            final ClientPlayerNative player = ClientPlayerNative.create(hostName);
+
+            if (player == null) {
                 Toast.makeText(
-                        Player.ApplicationAccessor.activity,
+                        ApplicationAccessor.activity,
                         R.string.invalid_ip,
                         Toast.LENGTH_LONG
                 ).show();
+                return;
             }
+
+            clientPlayerNative = player;
+            new Thread(this::startCycle).start();
+            sendReady();
         }).get();
     }
 
@@ -255,32 +218,8 @@ public final class ClientPlayer extends Player {
         executor.submit(new Runnable() {
             @Override
             public void run() {
-                final ByteBuffer readBuffer = ByteBuffer.allocate(1);
-
-                try { client.read(readBuffer); }
-                catch (final IOException e) { e.printStackTrace(); }
-
-                readBuffer.flip();
-                role = readBuffer.get();
+                role = clientPlayerNative.readRole();
             }
         }).get();
-    }
-
-    @NonNull
-    protected final byte[][] readTable() {
-        final ByteBuffer buffer = ByteBuffer.allocate(9);
-
-        try { client.read(buffer); }
-        catch (final IOException e) { e.printStackTrace(); }
-
-        buffer.flip();
-
-        final byte[][] gameTable = new byte[Server.gameTableSize][Server.gameTableSize];
-
-        for (int i = 0; i < Server.gameTableSize; i++)
-            for (int q = 0; q < Server.gameTableSize; q++)
-                gameTable[i][q] = buffer.get();
-
-        return gameTable;
     }
 }

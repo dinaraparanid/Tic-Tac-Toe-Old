@@ -4,6 +4,7 @@ plugins {
 
 android {
     compileSdk 30
+    ndkVersion '22.1.7171670'
 
     defaultConfig {
         applicationId "com.dinaraparanid.tictactoe"
@@ -30,6 +31,15 @@ android {
     }
     ndkVersion '22.1.7171670'
     compileSdkVersion 30
+}
+
+apply plugin: "com.github.willir.rust.cargo-ndk-android"
+
+cargoNdk {
+    targets = ["arm64", "arm", "x86", "x86_64"]
+    module = "app/src/main/java/com/dinaraparanid/tictactoe"
+    librariesNames = ["libtictactoe.so"]
+    buildType = "release"
 }
 
 dependencies {

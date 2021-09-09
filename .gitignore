@@ -10,6 +10,9 @@
 .DS_Store
 /build
 /captures
+/databases
 .externalNativeBuild
 .cxx
 local.properties
+/app/src/main/java/com/dinaraparanid/tictactoe/target
+/app/src/main/java/com/dinaraparanid/tictactoe/Cargo.lock
