@@ -7,6 +7,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
+import com.dinaraparanid.tictactoe.native_libs.ClientPlayerNative;
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 

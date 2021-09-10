@@ -18,32 +18,36 @@ impl ClientPlayer {
 
     #[inline]
     pub(crate) fn send_ready(&mut self) {
-        self.stream.write(&[PLAYER_IS_FOUND]).unwrap();
+        unsafe { self.stream.write(&[PLAYER_IS_FOUND]).unwrap_unchecked() };
     }
 
     #[inline]
     pub(crate) fn send_move(&mut self, y: u8, x: u8) {
-        self.stream.write(&[PLAYER_MOVED, y, x]).unwrap();
+        unsafe { self.stream.write(&[PLAYER_MOVED, y, x]).unwrap_unchecked() };
     }
 
     #[inline]
     pub(crate) fn read_command(&mut self) -> u8 {
         let mut data = [0];
-        self.stream.read_exact(&mut data).unwrap();
-        unsafe { *data.get_unchecked(0) }
+        unsafe {
+            self.stream.read_exact(&mut data).unwrap_unchecked();
+            *data.get_unchecked(0)
+        }
     }
 
     #[inline]
     pub(crate) fn read_role(&mut self) -> u8 {
         let mut data = [0];
-        self.stream.read_exact(&mut data).unwrap();
-        unsafe { *data.get_unchecked(0) }
+        unsafe {
+            self.stream.read_exact(&mut data).unwrap_unchecked();
+            *data.get_unchecked(0)
+        }
     }
 
     #[inline]
     pub(crate) fn read_table(&mut self) -> [[u8; 3]; 3] {
         let mut data = [0; 9];
-        self.stream.read_exact(&mut data).unwrap();
+        unsafe { self.stream.read_exact(&mut data).unwrap_unchecked() }
 
         let mut table = [[0; 3]; 3];
         let mut iter = data.iter();
