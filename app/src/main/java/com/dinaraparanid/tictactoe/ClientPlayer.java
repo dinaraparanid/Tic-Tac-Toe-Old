@@ -25,7 +25,9 @@ public final class ClientPlayer extends Player {
     @NonNull
     private static final String TAG = "ClientPlayer";
 
-    public static final Parcelable.Creator<ClientPlayer> CREATOR = new Creator<ClientPlayer>() {
+    private static final byte FINISH_GAME = 3;
+
+    public static final Parcelable.Creator<ClientPlayer> CREATOR = new Parcelable.Creator<ClientPlayer>() {
         @NonNull
         @Contract("_ -> new")
         @Override
@@ -189,7 +191,7 @@ public final class ClientPlayer extends Player {
     protected final void startCycle() {
         byte command = -1;
 
-        while (command != Server.COMMAND_GAME_FINISH) {
+        while (command != FINISH_GAME) {
             command = clientPlayerNative.readCommand();
             Log.d(TAG + " COMMAND", Integer.toString(command));
             states[command].run();

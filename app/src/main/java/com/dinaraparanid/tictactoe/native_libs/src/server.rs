@@ -4,14 +4,17 @@ use std::{
     sync::atomic::AtomicBool,
 };
 
+use crate::client_player::{PLAYER_IS_FOUND, PLAYER_MOVED};
+
 const COMMAND_SHOW_ROLE: u8 = 0;
 const COMMAND_CORRECT_MOVE: u8 = 1;
 const COMMAND_INVALID_MOVE: u8 = 2;
-const COMMAND_GAME_FINISHED: u8 = 3;
+const COMMAND_FINISH_GAME: u8 = 3;
 
 pub(crate) struct Server {
     listener: TcpListener,
     is_game_ended: AtomicBool,
+    current_stream: Option<TcpStream>,
 }
 
 impl Server {
@@ -20,7 +23,43 @@ impl Server {
         Ok(Server {
             listener: TcpListener::bind(format!("{}:1337", ip))?,
             is_game_ended: AtomicBool::default(),
+            current_stream: None,
         })
+    }
+
+    #[inline]
+    pub(crate) fn get_current_stream(&self) -> &Option<TcpStream> {
+        &self.current_stream
+    }
+
+    #[inline]
+    pub(crate) fn get_current_stream_mut(&mut self) -> &mut Option<TcpStream> {
+        &mut self.current_stream
+    }
+
+    #[inline]
+    pub(crate) fn set_current_stream(&mut self, stream: TcpStream) {
+        self.current_stream = Some(stream)
+    }
+
+    #[inline]
+    pub(crate) fn get_listener(&self) -> &TcpListener {
+        &self.listener
+    }
+
+    #[inline]
+    pub(crate) fn get_listener_mut(&mut self) -> &mut TcpListener {
+        &mut self.listener
+    }
+
+    #[inline]
+    pub(crate) fn get_game_ended(&self) -> &AtomicBool {
+        &self.is_game_ended
+    }
+
+    #[inline]
+    pub(crate) fn get_game_ended_mut(&mut self) -> &mut AtomicBool {
+        &mut self.is_game_ended
     }
 
     #[inline]
@@ -45,7 +84,20 @@ impl Server {
                 while match stream.read(&mut data) {
                     Ok(size) => match size {
                         0 => false,
-                        _ => true,
+
+                        _ => {
+                            let command = unsafe { *data.get_unchecked(0) };
+
+                            match command {
+                                PLAYER_IS_FOUND => {}
+
+                                PLAYER_MOVED => {}
+
+                                _ => unreachable!(),
+                            }
+
+                            true
+                        }
                     },
 
                     Err(_) => unsafe {
@@ -58,7 +110,7 @@ impl Server {
     }
 
     #[inline]
-    pub(crate) fn send_roles(stream: &mut TcpStream, client_player_role: u8) {
+    pub(crate) fn send_role(stream: &mut TcpStream, client_player_role: u8) {
         unsafe {
             stream
                 .write(&[COMMAND_SHOW_ROLE, client_player_role])
@@ -93,6 +145,6 @@ impl Server {
 
     #[inline]
     pub(crate) fn send_game_finished(stream: &mut TcpStream) {
-        unsafe { stream.write(&[COMMAND_GAME_FINISHED]).unwrap_unchecked() };
+        unsafe { stream.write(&[COMMAND_FINISH_GAME]).unwrap_unchecked() };
     }
 }

@@ -1,8 +1,10 @@
-use std::io::{Read, Write};
-use std::net::TcpStream;
+use std::{
+    io::{Read, Write},
+    net::TcpStream,
+};
 
-const PLAYER_IS_FOUND: u8 = 0;
-const PLAYER_MOVED: u8 = 1;
+pub(crate) const PLAYER_IS_FOUND: u8 = 0;
+pub(crate) const PLAYER_MOVED: u8 = 1;
 
 pub(crate) struct ClientPlayer {
     stream: TcpStream,

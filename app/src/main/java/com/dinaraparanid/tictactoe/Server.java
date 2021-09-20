@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.dinaraparanid.tictactoe.native_libs.ServerNative;
 import com.dinaraparanid.tictactoe.utils.Coordinate;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 
@@ -22,18 +23,13 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NonNls;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.nio.channels.WritableByteChannel;
 import java.security.SecureRandom;
-import java.util.Iterator;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -46,8 +42,6 @@ public final class Server extends Service {
     @NonNull
     private static final String TAG = "Server";
 
-    static final int PORT = 1337;
-
     public static final int gameTableSize = 3; // TODO: create customizable table
 
     @NonNull
@@ -59,9 +53,6 @@ public final class Server extends Service {
 
     @NonNull
     protected final AtomicBoolean isGameEnded = new AtomicBoolean();
-
-    @NonNull
-    protected final AtomicReference<SocketChannel> client = new AtomicReference<>();
 
     @NonNull
     protected final ExecutorService executor = Executors.newCachedThreadPool();
@@ -126,21 +117,9 @@ public final class Server extends Service {
     @NonNull
     static final String BROADCAST_GAME_FINISHED = "game_finished";
 
-    // -------------------------------- ClientPlayer callbacks --------------------------------
-
-    static final byte PLAYER_IS_FOUND = 0;
-
-    static final byte PLAYER_MOVED = 1;
-
-    // -------------------------------- ClientPlayer send commands --------------------------------
-
-    static final byte COMMAND_SHOW_ROLE = 0;
-    static final byte COMMAND_CORRECT_MOVE = 1;
-    static final byte COMMAND_INVALID_MOVE = 2;
-    static final byte COMMAND_GAME_FINISH = 3;
-
     private static final long NO_PLAYER_FOUND = Long.MAX_VALUE;
 
+    @NonNull
     protected AtomicBoolean isClientPlayerConnected = new AtomicBoolean();
 
     protected final class LocalBinder extends Binder {
@@ -153,10 +132,7 @@ public final class Server extends Service {
     private final IBinder iBinder = new LocalBinder();
 
     @NonNull
-    protected ServerSocketChannel server;
-
-    @NonNull
-    protected Selector selector;
+    protected ServerNative serverNative;
 
     @NonNull
     private final BroadcastReceiver createGameReceiver = new BroadcastReceiver() {
@@ -165,6 +141,9 @@ public final class Server extends Service {
             if (intent.getAction().equals(BROADCAST_CREATE_GAME)) {
                 Log.d(TAG, "Create game");
                 sendIp(hostName.get());
+
+                // TODO: Incorrect server
+                serverNative = Objects.requireNonNull(ServerNative.create(hostName.get()));
 
                 isGameEnded.set(false);
                 isClientPlayerConnected.set(false);
@@ -177,10 +156,7 @@ public final class Server extends Service {
                         gameTable.length
                 );
 
-                new Thread(() -> {
-                    try { runBFSM(); }
-                    catch (final IOException e) { e.printStackTrace(); }
-                }).start();
+                new Thread(serverNative::runBFSM).start();
 
                 executor.submit(() -> {
                     final Lock lock = new ReentrantLock();
@@ -233,11 +209,7 @@ public final class Server extends Service {
                     gameTable[coordinate.getY()][coordinate.getX()] = 1;
 
                     executor.execute(() -> {
-                        try {
-                            sendCorrectMove(client.get());
-                        } catch (final ExecutionException | InterruptedException e) {
-                            e.printStackTrace();
-                        }
+                        serverNative.sendCorrectMove(gameTable);
 
                         boolean isFilled = true;
 
@@ -252,12 +224,7 @@ public final class Server extends Service {
 
                         if (isFilled) {
                             isGameEnded.set(true);
-
-                            try {
-                                sendGameFinish(client.get());
-                            } catch (final ExecutionException | InterruptedException e) {
-                                e.printStackTrace();
-                            }
+                            serverNative.sendGameFinished();
                         }
                     });
                 } else {
@@ -296,11 +263,11 @@ public final class Server extends Service {
     }
 
     private final class SendRolesState extends State {
-        SendRolesState(@NonNull final WritableByteChannel client) {
+        SendRolesState() {
             super(() -> {
                 Log.d(TAG, "Send roles");
                 try {
-                    sendRoles(client);
+                    sendRoles();
                 } catch (final ExecutionException | InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -309,25 +276,19 @@ public final class Server extends Service {
     }
 
     private final class ClientPlayerIsMovedState extends State {
-        ClientPlayerIsMovedState(@NonNull final SocketChannel client) {
+        ClientPlayerIsMovedState() {
             super(() -> {
                 Log.d(TAG, "Client player is moved");
 
-                final ByteBuffer buffer = ByteBuffer.allocate(2);
-
-                try { client.read(buffer); }
-                catch (final IOException e) { e.printStackTrace(); }
-
-                buffer.flip();
-
-                final byte y = buffer.get();
-                final byte x = buffer.get();
+                final byte[] buf = serverNative.readMove();
+                final byte y = buf[0];
+                final byte x = buf[1];
 
                 if (checkMovement(y, x)) {
                     gameTable[y][x] = 2;
 
                     try {
-                        sendCorrectMove(client);
+                        sendCorrectMove();
                     } catch (final ExecutionException | InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -347,7 +308,7 @@ public final class Server extends Service {
                         isGameEnded.set(true);
 
                         try {
-                            sendGameFinish(client);
+                            sendGameFinish();
                         } catch (final ExecutionException | InterruptedException e) {
                             e.printStackTrace();
                         }
@@ -356,7 +317,7 @@ public final class Server extends Service {
                     }
                 } else {
                     try {
-                        sendClientPlayerInvalidMove(client);
+                        sendClientPlayerInvalidMove();
                     } catch (final ExecutionException | InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -365,32 +326,22 @@ public final class Server extends Service {
         }
     }
 
-    protected final void createServerSocket() throws ExecutionException, InterruptedException {
-        executor.submit(() -> hostName.set(
-                Formatter.formatIpAddress(
-                        ((WifiManager) getApplicationContext()
-                                .getSystemService(WIFI_SERVICE))
-                                .getConnectionInfo()
-                                .getIpAddress()
-                )
-        )).get();
+    @NonNull
+    protected final Future<?> createServerSocketAsync() {
+       return executor.submit(() -> {
+            hostName.set(
+                    Formatter.formatIpAddress(
+                            ((WifiManager) getApplicationContext()
+                                    .getSystemService(WIFI_SERVICE))
+                                    .getConnectionInfo()
+                                    .getIpAddress()
+                    )
+            );
 
-        sendIp(hostName.get());
-
-        try { server = ServerSocketChannel.open(); }
-        catch (final IOException e) { e.printStackTrace(); }
-
-        executor.submit(() -> {
-            try {
-                server.socket().bind(new InetSocketAddress(hostName.get(), PORT));
-                server.configureBlocking(false);
-
-                selector = Selector.open();
-                server.register(selector, SelectionKey.OP_ACCEPT);
-            } catch (final IOException e) {
-                e.printStackTrace();
-            }
-        }).get();
+            // TODO: incorrect server
+            serverNative = Objects.requireNonNull(ServerNative.create(hostName.get()));
+            sendIp(hostName.get());
+        });
     }
 
     @NonNull
@@ -409,7 +360,7 @@ public final class Server extends Service {
         registerKillReceiver();
 
         try {
-            createServerSocket();
+            createServerSocketAsync().get();
         } catch (final InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
@@ -421,10 +372,7 @@ public final class Server extends Service {
             final int flags,
             final int startId
     ) {
-        new Thread(() -> {
-            try { runBFSM(); }
-            catch (final IOException e) { e.printStackTrace(); }
-        }).start();
+        new Thread(serverNative::runBFSM).start();
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -490,51 +438,16 @@ public final class Server extends Service {
         manager.unregisterReceiver(killReceiver);
     }
 
-    /** Like BFG in DOOM, but it's State Machine */
+    public final void runClientPlayerIsFoundState() {
+        new ClientPlayerIsFoundState().run();
+    }
 
-    protected final void runBFSM() throws IOException {
-        while (!isGameEnded.get()) {
-            selector.select();
-            final Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
+    public final void runSendRolesState() {
+        new SendRolesState().run();
+    }
 
-            while (iter.hasNext()) {
-                final SelectionKey key = iter.next();
-
-                if (key.isAcceptable()) {
-                    final SocketChannel clientRegister = server.accept();
-                    clientRegister.configureBlocking(false);
-                    clientRegister.register(selector, SelectionKey.OP_READ);
-                } else if (key.isReadable()) {
-                    final ByteBuffer readerBuffer = ByteBuffer.allocate(1);
-                    client.set((SocketChannel) key.channel());
-
-                    if (client.get().read(readerBuffer) < 0) {
-                        client.get().close();
-                    } else {
-                        readerBuffer.flip();
-                        final byte command = readerBuffer.get();
-
-                        Log.d(TAG, "Command: " + command);
-
-                        switch (command) {
-                            case PLAYER_IS_FOUND:
-                                new ClientPlayerIsFoundState().run();
-                                new SendRolesState(client.get()).run();
-                                break;
-
-                            case PLAYER_MOVED:
-                                new ClientPlayerIsMovedState(client.get()).run();
-                                break;
-
-                            default:
-                                break;
-                        }
-                    }
-                }
-
-                iter.remove();
-            }
-        }
+    public final void runClientPlayerIsMovedState() {
+        new ClientPlayerIsMovedState().run();
     }
 
     protected final boolean checkMovement(@NonNull final Coordinate coordinate) {
@@ -561,7 +474,7 @@ public final class Server extends Service {
                 .sendBroadcast(new Intent(BROADCAST_NO_PLAYER_FOUND));
     }
 
-    protected final void sendRoles(@NonNull final WritableByteChannel client)
+    protected final void sendRoles()
             throws ExecutionException, InterruptedException {
         final byte serverPlayerRole = (byte) new SecureRandom().nextInt(2);
         final byte clientPlayerRole = (byte) (1 - serverPlayerRole);
@@ -573,18 +486,10 @@ public final class Server extends Service {
                                 .putExtra(BROADCAST_GET_ROLE, serverPlayerRole)
                 );
 
-        executor.submit(() -> {
-            final ByteBuffer buffer = ByteBuffer.allocate(2);
-            buffer.put(COMMAND_SHOW_ROLE);
-            buffer.put(clientPlayerRole);
-            buffer.flip();
-
-            try { client.write(buffer); }
-            catch (final IOException e) { e.printStackTrace(); }
-        }).get();
+        executor.submit(() -> serverNative.sendRole(clientPlayerRole)).get();
     }
 
-    protected final void sendCorrectMove(@NonNull final WritableByteChannel client)
+    protected final void sendCorrectMove()
             throws ExecutionException, InterruptedException {
         Log.d(TAG, "Send correct move");
 
@@ -595,20 +500,7 @@ public final class Server extends Service {
                                 .putExtra(BROADCAST_GET_UPDATE_TABLE, gameTable)
                 );
 
-        executor.submit(() -> {
-            final ByteBuffer buffer = ByteBuffer.allocate(1 + gameTableSize * gameTableSize);
-            buffer.put(COMMAND_CORRECT_MOVE);
-
-            // Damn, streams requires API 24 :(
-            for (final byte[] r : gameTable)
-                for (final byte b : r)
-                    buffer.put(b);
-
-            buffer.flip();
-
-            try { client.write(buffer); }
-            catch (final IOException e) { e.printStackTrace(); }
-        }).get();
+        executor.submit(() -> serverNative.sendCorrectMove(gameTable)).get();
     }
 
     protected final void sendServerPlayerInvalidMove() {
@@ -621,21 +513,13 @@ public final class Server extends Service {
                 );
     }
 
-    protected void sendClientPlayerInvalidMove(@NonNull final WritableByteChannel client)
+    protected void sendClientPlayerInvalidMove()
             throws ExecutionException, InterruptedException {
         Log.d(TAG, "Send client invalid move");
-
-        executor.submit(() -> {
-            final ByteBuffer buffer = ByteBuffer.allocate(1);
-            buffer.put(COMMAND_INVALID_MOVE);
-            buffer.flip();
-
-            try { client.write(buffer); }
-            catch (final IOException e) { e.printStackTrace(); }
-        }).get();
+        executor.submit(serverNative::sendInvalidMove).get();
     }
 
-    protected void sendGameFinish(@NonNull final WritableByteChannel client)
+    protected void sendGameFinish()
             throws ExecutionException, InterruptedException {
         Log.d(TAG, "Game finished");
 
@@ -643,14 +527,7 @@ public final class Server extends Service {
                 .getInstance(getApplicationContext())
                 .sendBroadcast(new Intent(BROADCAST_GAME_FINISHED));
 
-        executor.submit(() -> {
-            final ByteBuffer buffer = ByteBuffer.allocate(1);
-            buffer.put(COMMAND_GAME_FINISH);
-            buffer.flip();
-
-            try { client.write(buffer); }
-            catch (final IOException e) { e.printStackTrace(); }
-        }).get();
+        executor.submit(serverNative::sendGameFinished).get();
     }
 
     protected final void stop() {

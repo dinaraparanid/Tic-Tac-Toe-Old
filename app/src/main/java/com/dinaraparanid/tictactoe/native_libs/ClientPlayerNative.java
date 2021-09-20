@@ -8,6 +8,8 @@ public final class ClientPlayerNative {
 
     private long ptr = 0;
 
+    private ClientPlayerNative() {}
+
     public static final ClientPlayerNative create(final String ip) {
         final ClientPlayerNative player = new ClientPlayerNative();
         player.ptr = init(ip);
