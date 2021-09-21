@@ -10,9 +10,9 @@ extern "C" {
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
  * Method:    init
- * Signature: (Ljava/lang/String;)J
+ * Signature: (Ljava/lang/String;)Ljava/nio/ByteBuffer;
  */
-JNIEXPORT jlong JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_init
+JNIEXPORT jobject JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_init
   (JNIEnv *, jclass, jstring);
 
 /*

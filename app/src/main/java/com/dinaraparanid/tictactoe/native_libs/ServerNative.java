@@ -1,22 +1,24 @@
 package com.dinaraparanid.tictactoe.native_libs;
 
+import java.nio.ByteBuffer;
+
 public final class ServerNative {
 
     static {
         System.loadLibrary("tictactoe");
     }
 
-    private long ptr = 0;
+    private ByteBuffer ptr = null;
 
     private ServerNative() {}
 
     public static final ServerNative create(final String ip) {
         final ServerNative server = new ServerNative();
         server.ptr = init(ip);
-        return server.ptr == 0 ? null : server;
+        return server.ptr == null ? null : server;
     }
 
-    private static final native long init(final String ip);
+    private static final native ByteBuffer init(final String ip);
 
     public final native byte[] readMove();
 

@@ -6,8 +6,35 @@ pub mod server;
 extern crate jni;
 
 use crate::{client_player::*, server::Server};
+
 use jni::sys::{jbyte, jbyteArray, jclass, jlong, jobject, jobjectArray, jsize, jstring, JNIEnv};
-use std::{ffi::CString, io::Read, mem, net::Shutdown, os::raw::c_char};
+
+use std::{
+    ffi::{c_void, CString},
+    io::Read,
+    mem,
+    net::Shutdown,
+    os::raw::c_char,
+};
+
+#[inline]
+unsafe fn get_pointer<T>(env: *mut JNIEnv, class: jobject) -> *mut T {
+    (**env).GetDirectBufferAddress.unwrap_unchecked()(
+        env,
+        (**env).GetObjectField.unwrap_unchecked()(
+            env,
+            class,
+            (**env).GetFieldID.unwrap_unchecked()(
+                env,
+                (**env).GetObjectClass.unwrap_unchecked()(env, class),
+                CString::new("ptr").unwrap_unchecked().as_ptr(),
+                CString::new("Ljava/nio/ByteBuffer")
+                    .unwrap_unchecked()
+                    .as_ptr(),
+            ),
+        ),
+    ) as *mut T
+}
 
 #[no_mangle]
 #[allow(non_snake_case)]
@@ -15,34 +42,30 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
     env: *mut JNIEnv,
     _class: jclass,
     ip: jstring,
-) -> jlong {
+) -> jobject {
     let ip_size = (**env).GetStringUTFLength.unwrap_unchecked()(env, ip) as usize;
     let ip =
         (**env).GetStringUTFChars.unwrap_unchecked()(env, ip, &mut 0) as *mut c_char as *mut u8;
 
     match ClientPlayer::new(String::from_raw_parts(ip, ip_size, ip_size)) {
         Ok(mut player) => {
-            let ptr = mem::transmute::<*mut ClientPlayer, jlong>(&mut player);
+            let ptr = &mut player as *mut ClientPlayer as *mut c_void;
             mem::forget(player);
-            ptr
+
+            (**env).NewDirectByteBuffer.unwrap_unchecked()(
+                env,
+                ptr,
+                mem::size_of::<*mut ClientPlayer>() as jlong,
+            )
         }
 
-        Err(_) => 0,
+        Err(_) => std::ptr::null(),
     }
 }
 
 #[inline]
 unsafe fn get_client_pointer(env: *mut JNIEnv, class: jobject) -> *mut ClientPlayer {
-    mem::transmute::<*mut jlong, *mut ClientPlayer>(&mut (**env).GetLongField.unwrap_unchecked()(
-        env,
-        class,
-        (**env).GetFieldID.unwrap_unchecked()(
-            env,
-            (**env).GetObjectClass.unwrap_unchecked()(env, class),
-            CString::new("ptr").unwrap_unchecked().as_ptr(),
-            CString::new("L").unwrap_unchecked().as_ptr(),
-        ),
-    ))
+    get_pointer(env, class) as *mut ClientPlayer
 }
 
 #[no_mangle]
@@ -125,34 +148,30 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     env: *mut JNIEnv,
     _class: jclass,
     ip: jstring,
-) -> jlong {
+) -> jobject {
     let ip_size = (**env).GetStringUTFLength.unwrap_unchecked()(env, ip) as usize;
     let ip =
         (**env).GetStringUTFChars.unwrap_unchecked()(env, ip, &mut 0) as *mut c_char as *mut u8;
 
     match Server::new(String::from_raw_parts(ip, ip_size, ip_size)) {
         Ok(mut server) => {
-            let ptr = mem::transmute::<*mut Server, jlong>(&mut server);
+            let ptr = &mut server as *mut Server as *mut c_void;
             mem::forget(server);
-            ptr
+
+            (**env).NewDirectByteBuffer.unwrap_unchecked()(
+                env,
+                ptr,
+                mem::size_of::<*mut Server>() as jlong,
+            )
         }
 
-        Err(_) => 0,
+        Err(_) => std::ptr::null(),
     }
 }
 
 #[inline]
 unsafe fn get_server_pointer(env: *mut JNIEnv, class: jobject) -> *mut Server {
-    mem::transmute::<*mut jlong, *mut Server>(&mut (**env).GetLongField.unwrap_unchecked()(
-        env,
-        class,
-        (**env).GetFieldID.unwrap_unchecked()(
-            env,
-            (**env).GetObjectClass.unwrap_unchecked()(env, class),
-            CString::new("ptr").unwrap_unchecked().as_ptr(),
-            CString::new("L").unwrap_unchecked().as_ptr(),
-        ),
-    ))
+    get_pointer(env, class) as *mut Server
 }
 
 #[inline]
@@ -178,7 +197,8 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     let coordinate = Server::read_move(
         &mut (*get_server_pointer(env, class))
             .get_current_stream_mut()
-            .unwrap(),
+            .as_mut()
+            .unwrap_unchecked(),
     );
 
     let buf = (**env).NewByteArray.unwrap_unchecked()(env, 2);
@@ -192,7 +212,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     buf
 }
 
-#[no_mange]
+#[no_mangle]
 #[allow(non_snake_case)]
 pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_runBFSM(
     env: *mut JNIEnv,
@@ -201,11 +221,11 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     let server = get_server_pointer(env, class);
 
     for stream in (*server).get_listener().incoming() {
-        if { (*server).get_game_ended().get_mut() } {
+        if { *(*server).get_game_ended_mut().get_mut() } {
             break;
         }
 
-        if let Ok(mut stream) = stream {
+        if let Ok(stream) = stream {
             (*get_server_pointer(env, class)).set_current_stream(stream);
 
             let mut data = [0];
@@ -213,6 +233,8 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
             while match {
                 (*get_server_pointer(env, class))
                     .get_current_stream_mut()
+                    .as_ref()
+                    .unwrap_unchecked()
                     .read(&mut data)
             } {
                 Ok(size) => match size {
@@ -237,7 +259,12 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
                 },
 
                 Err(_) => {
-                    stream.shutdown(Shutdown::Both).unwrap_unchecked();
+                    (*get_server_pointer(env, class))
+                        .get_current_stream()
+                        .as_ref()
+                        .unwrap_unchecked()
+                        .shutdown(Shutdown::Both)
+                        .unwrap_unchecked();
                     false
                 }
             } {}
@@ -269,7 +296,8 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     Server::send_correct_move(
         &mut (*get_server_pointer(env, class))
             .get_current_stream_mut()
-            .unwrap(),
+            .as_mut()
+            .unwrap_unchecked(),
         [
             get_row_from_table(env, table, 0),
             get_row_from_table(env, table, 1),
@@ -278,7 +306,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     )
 }
 
-#[no_mange]
+#[no_mangle]
 #[allow(non_snake_case)]
 pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendInvalidMove(
     env: *mut JNIEnv,
@@ -287,11 +315,12 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     Server::send_invalid_move(
         &mut (*get_server_pointer(env, class))
             .get_current_stream_mut()
+            .as_mut()
             .unwrap(),
     )
 }
 
-#[no_mange]
+#[no_mangle]
 #[allow(non_snake_case)]
 pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendGameFinished(
     env: *mut JNIEnv,
@@ -300,11 +329,12 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     Server::send_game_finished(
         &mut (*get_server_pointer(env, class))
             .get_current_stream_mut()
-            .unwrap(),
+            .as_mut()
+            .unwrap_unchecked(),
     )
 }
 
-#[no_mange]
+#[no_mangle]
 #[allow(non_snake_case)]
 pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendRole(
     env: *mut JNIEnv,
@@ -314,7 +344,8 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     Server::send_role(
         &mut (*get_server_pointer(env, class))
             .get_current_stream_mut()
-            .unwrap(),
+            .as_mut()
+            .unwrap_unchecked(),
         client_player_role as u8,
     )
 }
