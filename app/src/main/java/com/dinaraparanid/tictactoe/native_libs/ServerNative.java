@@ -1,5 +1,8 @@
 package com.dinaraparanid.tictactoe.native_libs;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import java.nio.ByteBuffer;
 
 public final class ServerNative {
@@ -12,23 +15,30 @@ public final class ServerNative {
 
     private ServerNative() {}
 
-    public static final ServerNative create(final String ip) {
+    @Nullable
+    public static final ServerNative create(@NonNull final String ip) {
         final ServerNative server = new ServerNative();
         server.ptr = init(ip);
         return server.ptr == null ? null : server;
     }
 
-    private static final native ByteBuffer init(final String ip);
+    @Nullable
+    private static final native ByteBuffer init(@NonNull final String ip);
 
+    @NonNull
     public final native byte[] readMove();
 
     public final native void runBFSM();
 
-    public final native void sendCorrectMove(final byte[][] table);
+    @Nullable
+    public final native String sendCorrectMove(@NonNull final byte[][] table);
 
-    public final native void sendInvalidMove();
+    @Nullable
+    public final native String sendInvalidMove();
 
-    public final native void sendGameFinished();
+    @Nullable
+    public final native String sendGameFinished();
 
-    public final native void sendRole(final byte clientPlayerRole);
+    @Nullable
+    public final native String sendRole(final byte clientPlayerRole);
 }

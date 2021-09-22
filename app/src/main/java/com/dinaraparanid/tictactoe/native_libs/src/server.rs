@@ -4,7 +4,10 @@ use std::{
     sync::atomic::AtomicBool,
 };
 
-use crate::client_player::{PLAYER_IS_FOUND, PLAYER_MOVED};
+use crate::{
+    client_player::{PLAYER_IS_FOUND, PLAYER_MOVED},
+    utils::*,
+};
 
 const COMMAND_SHOW_ROLE: u8 = 0;
 const COMMAND_CORRECT_MOVE: u8 = 1;
@@ -63,12 +66,11 @@ impl Server {
     }
 
     #[inline]
-    pub(crate) fn read_move(stream: &mut TcpStream) -> (u8, u8) {
+    pub(crate) fn read_move(stream: &mut TcpStream) -> StackTraceValueResult<(u8, u8)> {
         let mut data = [0; 2];
-        unsafe {
-            stream.read_exact(&mut data).unwrap_unchecked();
+        handle_err_value(stream.read_exact(&mut data), unsafe {
             (*data.get_unchecked(0), *data.get_unchecked(1))
-        }
+        })
     }
 
     #[inline]
@@ -110,41 +112,38 @@ impl Server {
     }
 
     #[inline]
-    pub(crate) fn send_role(stream: &mut TcpStream, client_player_role: u8) {
-        unsafe {
-            stream
-                .write(&[COMMAND_SHOW_ROLE, client_player_role])
-                .unwrap_unchecked()
-        };
+    pub(crate) fn send_role(stream: &mut TcpStream, client_player_role: u8) -> StackTraceResult {
+        get_err_if_exists(stream.write(&[COMMAND_SHOW_ROLE, client_player_role]))
     }
 
     #[inline]
-    pub(crate) fn send_correct_move(stream: &mut TcpStream, table: [[u8; 3]; 3]) {
-        unsafe {
-            stream
-                .write(&[
-                    COMMAND_CORRECT_MOVE,
-                    *table.get_unchecked(0).get_unchecked(0),
-                    *table.get_unchecked(0).get_unchecked(1),
-                    *table.get_unchecked(0).get_unchecked(2),
-                    *table.get_unchecked(1).get_unchecked(0),
-                    *table.get_unchecked(1).get_unchecked(1),
-                    *table.get_unchecked(1).get_unchecked(2),
-                    *table.get_unchecked(2).get_unchecked(0),
-                    *table.get_unchecked(2).get_unchecked(1),
-                    *table.get_unchecked(2).get_unchecked(2),
-                ])
-                .unwrap_unchecked()
-        };
+    pub(crate) fn send_correct_move(
+        stream: &mut TcpStream,
+        table: [[u8; 3]; 3],
+    ) -> StackTraceResult {
+        get_err_if_exists(unsafe {
+            stream.write(&[
+                COMMAND_CORRECT_MOVE,
+                *table.get_unchecked(0).get_unchecked(0),
+                *table.get_unchecked(0).get_unchecked(1),
+                *table.get_unchecked(0).get_unchecked(2),
+                *table.get_unchecked(1).get_unchecked(0),
+                *table.get_unchecked(1).get_unchecked(1),
+                *table.get_unchecked(1).get_unchecked(2),
+                *table.get_unchecked(2).get_unchecked(0),
+                *table.get_unchecked(2).get_unchecked(1),
+                *table.get_unchecked(2).get_unchecked(2),
+            ])
+        })
     }
 
     #[inline]
-    pub(crate) fn send_invalid_move(stream: &mut TcpStream) {
-        unsafe { stream.write(&[COMMAND_INVALID_MOVE]).unwrap_unchecked() };
+    pub(crate) fn send_invalid_move(stream: &mut TcpStream) -> StackTraceResult {
+        get_err_if_exists(stream.write(&[COMMAND_INVALID_MOVE]))
     }
 
     #[inline]
-    pub(crate) fn send_game_finished(stream: &mut TcpStream) {
-        unsafe { stream.write(&[COMMAND_FINISH_GAME]).unwrap_unchecked() };
+    pub(crate) fn send_game_finished(stream: &mut TcpStream) -> StackTraceResult {
+        get_err_if_exists(stream.write(&[COMMAND_FINISH_GAME]))
     }
 }

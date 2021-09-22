@@ -18,17 +18,17 @@ JNIEXPORT jobject JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPl
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
  * Method:    sendReady
- * Signature: ()V
+ * Signature: ()Ljava/lang/String;
  */
-JNIEXPORT void JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendReady
+JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendReady
   (JNIEnv *, jobject);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
  * Method:    sendMove
- * Signature: (BB)V
+ * Signature: (BB)Ljava/lang/String;
  */
-JNIEXPORT void JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendMove
+JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendMove
   (JNIEnv *, jobject, jbyte, jbyte);
 
 /*

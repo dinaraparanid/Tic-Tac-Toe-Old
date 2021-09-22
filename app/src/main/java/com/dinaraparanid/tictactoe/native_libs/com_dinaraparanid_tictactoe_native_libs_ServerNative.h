@@ -34,33 +34,33 @@ JNIEXPORT void JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNativ
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    sendCorrectMove
- * Signature: ([[B)V
+ * Signature: ([[B)Ljava/lang/String;
  */
-JNIEXPORT void JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendCorrectMove
+JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendCorrectMove
   (JNIEnv *, jobject, jobjectArray);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    sendInvalidMove
- * Signature: ()V
+ * Signature: ()Ljava/lang/String;
  */
-JNIEXPORT void JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendInvalidMove
+JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendInvalidMove
   (JNIEnv *, jobject);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    sendGameFinished
- * Signature: ()V
+ * Signature: ()Ljava/lang/String;
  */
-JNIEXPORT void JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendGameFinished
+JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendGameFinished
   (JNIEnv *, jobject);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    sendRole
- * Signature: (B)V
+ * Signature: (B)Ljava/lang/String;
  */
-JNIEXPORT void JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendRole
+JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendRole
   (JNIEnv *, jobject, jbyte);
 
 #ifdef __cplusplus

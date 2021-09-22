@@ -161,7 +161,12 @@ public final class ClientPlayer extends Player {
     @Override
     public final void sendReady() {
         try {
-            executor.submit(clientPlayerNative::sendReady).get();
+            executor.submit(() -> {
+                final String stackTrace = clientPlayerNative.sendReady();
+
+                if (stackTrace != null)
+                    Log.d(TAG, stackTrace);
+            }).get();
         } catch (final ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }

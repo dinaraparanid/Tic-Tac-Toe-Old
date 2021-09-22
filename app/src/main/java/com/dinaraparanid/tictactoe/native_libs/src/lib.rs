@@ -1,42 +1,23 @@
 #![feature(option_result_unwrap_unchecked)]
-#![feature(backtrace)]
 
-pub mod client_player;
-pub mod server;
+pub(crate) mod client_player;
+pub(crate) mod server;
+pub(crate) mod utils;
 
 extern crate jni;
 
-use crate::{client_player::*, server::Server};
+use crate::{client_player::*, server::Server, utils::*};
 
 use jni::sys::{jbyte, jbyteArray, jclass, jlong, jobject, jobjectArray, jsize, jstring, JNIEnv};
 
 use std::{
     ffi::{c_void, CString},
-    io::Read,
+    io::{Read, Result},
     mem,
     net::Shutdown,
     os::raw::c_char,
-    ptr::drop_in_place,
+    ptr,
 };
-
-#[inline]
-unsafe fn get_pointer<T>(env: *mut JNIEnv, class: jobject) -> *mut T {
-    (**env).GetDirectBufferAddress.unwrap_unchecked()(
-        env,
-        (**env).GetObjectField.unwrap_unchecked()(
-            env,
-            class,
-            (**env).GetFieldID.unwrap_unchecked()(
-                env,
-                (**env).GetObjectClass.unwrap_unchecked()(env, class),
-                CString::new("ptr").unwrap_unchecked().as_ptr(),
-                CString::new("Ljava/nio/ByteBuffer;")
-                    .unwrap_unchecked()
-                    .as_ptr(),
-            ),
-        ),
-    ) as *mut T
-}
 
 #[no_mangle]
 #[allow(non_snake_case)]
@@ -61,7 +42,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
             )
         }
 
-        Err(_) => std::ptr::null_mut(),
+        Err(_) => ptr::null_mut(),
     }
 }
 
@@ -75,8 +56,8 @@ unsafe fn get_client_pointer(env: *mut JNIEnv, class: jobject) -> *mut ClientPla
 pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendReady(
     env: *mut JNIEnv,
     class: jobject,
-) {
-    (*get_client_pointer(env, class)).send_ready();
+) -> jstring {
+    send_err_or_null(env, (*get_client_pointer(env, class)).send_ready())
 }
 
 #[no_mangle]
@@ -86,8 +67,11 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
     class: jobject,
     y: jbyte,
     x: jbyte,
-) {
-    (*get_client_pointer(env, class)).send_move(y as u8, x as u8);
+) -> jstring {
+    send_err_or_null(
+        env,
+        (*get_client_pointer(env, class)).send_move(y as u8, x as u8),
+    )
 }
 
 #[no_mangle]
@@ -141,7 +125,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
     env: *mut JNIEnv,
     class: jobject,
 ) {
-    drop_in_place(get_client_pointer(env, class))
+    ptr::drop_in_place(get_client_pointer(env, class))
 }
 
 #[no_mangle]
@@ -167,7 +151,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
             )
         }
 
-        Err(_) => std::ptr::null_mut(),
+        Err(_) => ptr::null_mut(),
     }
 }
 
@@ -294,17 +278,20 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     env: *mut JNIEnv,
     class: jobject,
     table: jobjectArray,
-) {
-    Server::send_correct_move(
-        &mut (*get_server_pointer(env, class))
-            .get_current_stream_mut()
-            .as_mut()
-            .unwrap_unchecked(),
-        [
-            get_row_from_table(env, table, 0),
-            get_row_from_table(env, table, 1),
-            get_row_from_table(env, table, 2),
-        ],
+) -> jstring {
+    send_err_or_null(
+        env,
+        Server::send_correct_move(
+            &mut (*get_server_pointer(env, class))
+                .get_current_stream_mut()
+                .as_mut()
+                .unwrap_unchecked(),
+            [
+                get_row_from_table(env, table, 0),
+                get_row_from_table(env, table, 1),
+                get_row_from_table(env, table, 2),
+            ],
+        ),
     )
 }
 
@@ -313,12 +300,15 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
 pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendInvalidMove(
     env: *mut JNIEnv,
     class: jobject,
-) {
-    Server::send_invalid_move(
-        &mut (*get_server_pointer(env, class))
-            .get_current_stream_mut()
-            .as_mut()
-            .unwrap(),
+) -> jstring {
+    send_err_or_null(
+        env,
+        Server::send_invalid_move(
+            &mut (*get_server_pointer(env, class))
+                .get_current_stream_mut()
+                .as_mut()
+                .unwrap(),
+        ),
     )
 }
 
@@ -327,17 +317,18 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
 pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendGameFinished(
     env: *mut JNIEnv,
     class: jobject,
-) {
+) -> jstring {
     let ptr = get_server_pointer(env, class);
 
-    Server::send_game_finished(
+    let res = Server::send_game_finished(
         (&mut *ptr)
             .get_current_stream_mut()
             .as_mut()
             .unwrap_unchecked(),
     );
 
-    drop_in_place(ptr)
+    ptr::drop_in_place(ptr);
+    send_err_or_null(env, res)
 }
 
 #[no_mangle]
@@ -346,12 +337,15 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     env: *mut JNIEnv,
     class: jobject,
     client_player_role: jbyte,
-) {
-    Server::send_role(
-        &mut (*get_server_pointer(env, class))
-            .get_current_stream_mut()
-            .as_mut()
-            .unwrap_unchecked(),
-        client_player_role as u8,
+) -> jstring {
+    send_err_or_null(
+        env,
+        Server::send_role(
+            &mut (*get_server_pointer(env, class))
+                .get_current_stream_mut()
+                .as_mut()
+                .unwrap_unchecked(),
+            client_player_role as u8,
+        ),
     )
 }
