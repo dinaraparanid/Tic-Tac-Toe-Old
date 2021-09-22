@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public final class ClientPlayer extends Player {
 
@@ -71,7 +72,7 @@ public final class ClientPlayer extends Player {
                     hostName = param;
 
                     try {
-                        establishConnection();
+                        establishConnectionAsync().get();
                     } catch (final ExecutionException | InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -89,7 +90,7 @@ public final class ClientPlayer extends Player {
         this.hostName = hostName;
 
         try {
-            establishConnection();
+            establishConnectionAsync().get();
         } catch (final ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -159,10 +160,8 @@ public final class ClientPlayer extends Player {
 
     @Override
     public final void sendReady() {
-        Log.d(TAG, "Send ready");
-
         try {
-            executor.submit(() -> clientPlayerNative.sendReady()).get();
+            executor.submit(clientPlayerNative::sendReady).get();
         } catch (final ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -198,8 +197,8 @@ public final class ClientPlayer extends Player {
         }
     }
 
-    private final void establishConnection() throws ExecutionException, InterruptedException {
-        executor.submit(() -> {
+    private final Future<?> establishConnectionAsync() throws ExecutionException, InterruptedException {
+        return executor.submit(() -> {
             final ClientPlayerNative player = ClientPlayerNative.create(hostName);
 
             if (player == null) {
@@ -212,9 +211,9 @@ public final class ClientPlayer extends Player {
             }
 
             clientPlayerNative = player;
-            new Thread(this::startCycle).start();
             sendReady();
-        }).get();
+            new Thread(this::startCycle).start();
+        });
     }
 
     protected final void setRole() throws ExecutionException, InterruptedException {

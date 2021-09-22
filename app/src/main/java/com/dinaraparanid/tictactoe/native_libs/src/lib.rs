@@ -1,4 +1,5 @@
 #![feature(option_result_unwrap_unchecked)]
+#![feature(backtrace)]
 
 pub mod client_player;
 pub mod server;
@@ -15,6 +16,7 @@ use std::{
     mem,
     net::Shutdown,
     os::raw::c_char,
+    ptr::drop_in_place,
 };
 
 #[inline]
@@ -28,7 +30,7 @@ unsafe fn get_pointer<T>(env: *mut JNIEnv, class: jobject) -> *mut T {
                 env,
                 (**env).GetObjectClass.unwrap_unchecked()(env, class),
                 CString::new("ptr").unwrap_unchecked().as_ptr(),
-                CString::new("Ljava/nio/ByteBuffer")
+                CString::new("Ljava/nio/ByteBuffer;")
                     .unwrap_unchecked()
                     .as_ptr(),
             ),
@@ -59,13 +61,13 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
             )
         }
 
-        Err(_) => std::ptr::null(),
+        Err(_) => std::ptr::null_mut(),
     }
 }
 
 #[inline]
 unsafe fn get_client_pointer(env: *mut JNIEnv, class: jobject) -> *mut ClientPlayer {
-    get_pointer(env, class) as *mut ClientPlayer
+    get_pointer(env, class)
 }
 
 #[no_mangle]
@@ -139,7 +141,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
     env: *mut JNIEnv,
     class: jobject,
 ) {
-    std::ptr::drop_in_place(get_client_pointer(env, class))
+    drop_in_place(get_client_pointer(env, class))
 }
 
 #[no_mangle]
@@ -165,13 +167,13 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
             )
         }
 
-        Err(_) => std::ptr::null(),
+        Err(_) => std::ptr::null_mut(),
     }
 }
 
 #[inline]
 unsafe fn get_server_pointer(env: *mut JNIEnv, class: jobject) -> *mut Server {
-    get_pointer(env, class) as *mut Server
+    get_pointer(env, class)
 }
 
 #[inline]
@@ -232,7 +234,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
 
             while match {
                 (*get_server_pointer(env, class))
-                    .get_current_stream_mut()
+                    .get_current_stream()
                     .as_ref()
                     .unwrap_unchecked()
                     .read(&mut data)
@@ -274,7 +276,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
 
 #[inline]
 unsafe fn get_row_from_table(env: *mut JNIEnv, table: jobjectArray, index: jsize) -> [u8; 3] {
-    let row = (**env).GetObjectArrayElement.unwrap_unchecked()(env, table, 0);
+    let row = (**env).GetObjectArrayElement.unwrap_unchecked()(env, table, index);
     let mut buf = [0, 0, 0];
     (**env).GetByteArrayRegion.unwrap_unchecked()(
         env,
@@ -326,12 +328,16 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     env: *mut JNIEnv,
     class: jobject,
 ) {
+    let ptr = get_server_pointer(env, class);
+
     Server::send_game_finished(
-        &mut (*get_server_pointer(env, class))
+        (&mut *ptr)
             .get_current_stream_mut()
             .as_mut()
             .unwrap_unchecked(),
-    )
+    );
+
+    drop_in_place(ptr)
 }
 
 #[no_mangle]

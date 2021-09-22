@@ -1,3 +1,5 @@
+use std::error::Error;
+use std::fs::File;
 use std::{
     io::{Read, Write},
     net::TcpStream,
@@ -20,7 +22,7 @@ impl ClientPlayer {
 
     #[inline]
     pub(crate) fn send_ready(&mut self) {
-        unsafe { self.stream.write(&[PLAYER_IS_FOUND]).unwrap_unchecked() };
+        unsafe { self.stream.write(&[PLAYER_IS_FOUND]).unwrap_unchecked() }; // TODO: ОШИБКА
     }
 
     #[inline]
