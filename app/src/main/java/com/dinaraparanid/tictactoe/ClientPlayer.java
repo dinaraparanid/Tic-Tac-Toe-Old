@@ -161,12 +161,7 @@ public final class ClientPlayer extends Player {
     @Override
     public final void sendReady() {
         try {
-            executor.submit(() -> {
-                final String stackTrace = clientPlayerNative.sendReady();
-
-                if (stackTrace != null)
-                    Log.d(TAG, stackTrace);
-            }).get();
+            executor.submit(clientPlayerNative::sendReady).get();
         } catch (final ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -207,11 +202,13 @@ public final class ClientPlayer extends Player {
             final ClientPlayerNative player = ClientPlayerNative.create(hostName);
 
             if (player == null) {
-                Toast.makeText(
-                        ApplicationAccessor.activity,
-                        R.string.invalid_ip,
-                        Toast.LENGTH_LONG
-                ).show();
+                gameFragment.get().requireActivity().runOnUiThread(
+                        () -> Toast.makeText(
+                                ApplicationAccessor.activity,
+                                R.string.invalid_ip,
+                                Toast.LENGTH_LONG
+                        ).show()
+                );
                 return;
             }
 

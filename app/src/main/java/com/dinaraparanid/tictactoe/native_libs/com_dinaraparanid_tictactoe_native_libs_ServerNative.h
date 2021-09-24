@@ -18,50 +18,50 @@ JNIEXPORT jobject JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNa
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    readMove
- * Signature: ()[B
+ * Signature: (Ljava/nio/ByteBuffer;)[B
  */
 JNIEXPORT jbyteArray JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_readMove
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jobject);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    runBFSM
- * Signature: ()V
+ * Signature: (Ljava/nio/ByteBuffer;)V
  */
 JNIEXPORT void JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_runBFSM
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jobject);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    sendCorrectMove
- * Signature: ([[B)Ljava/lang/String;
+ * Signature: (Ljava/nio/ByteBuffer;[[B)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendCorrectMove
-  (JNIEnv *, jobject, jobjectArray);
+  (JNIEnv *, jclass, jobject, jobjectArray);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    sendInvalidMove
- * Signature: ()Ljava/lang/String;
+ * Signature: (Ljava/nio/ByteBuffer;)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendInvalidMove
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jobject);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    sendGameFinished
- * Signature: ()Ljava/lang/String;
+ * Signature: (Ljava/nio/ByteBuffer;)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendGameFinished
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jobject);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ServerNative
  * Method:    sendRole
- * Signature: (B)Ljava/lang/String;
+ * Signature: (Ljava/nio/ByteBuffer;B)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendRole
-  (JNIEnv *, jobject, jbyte);
+  (JNIEnv *, jclass, jobject, jbyte);
 
 #ifdef __cplusplus
 }

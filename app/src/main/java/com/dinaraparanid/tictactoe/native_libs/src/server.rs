@@ -1,19 +1,20 @@
+extern crate log;
+
 use std::{
     io::{Read, Write},
-    net::{Shutdown, TcpListener, TcpStream},
+    net::{TcpListener, TcpStream},
     sync::atomic::AtomicBool,
 };
 
-use crate::{
-    client_player::{PLAYER_IS_FOUND, PLAYER_MOVED},
-    utils::*,
-};
+use crate::utils::*;
 
+const TAG: &str = "server_native";
 const COMMAND_SHOW_ROLE: u8 = 0;
 const COMMAND_CORRECT_MOVE: u8 = 1;
 const COMMAND_INVALID_MOVE: u8 = 2;
 const COMMAND_FINISH_GAME: u8 = 3;
 
+#[repr(C)]
 pub(crate) struct Server {
     listener: TcpListener,
     is_game_ended: AtomicBool,
@@ -23,6 +24,8 @@ pub(crate) struct Server {
 impl Server {
     #[inline]
     pub(crate) fn new(ip: String) -> std::io::Result<Server> {
+        log::debug!("{} new", TAG);
+
         Ok(Server {
             listener: TcpListener::bind(format!("{}:1337", ip))?,
             is_game_ended: AtomicBool::default(),
@@ -67,6 +70,8 @@ impl Server {
 
     #[inline]
     pub(crate) fn read_move(stream: &mut TcpStream) -> StackTraceValueResult<(u8, u8)> {
+        log::debug!("{} read_move", TAG);
+
         let mut data = [0; 2];
         handle_err_value(stream.read_exact(&mut data), unsafe {
             (*data.get_unchecked(0), *data.get_unchecked(1))
@@ -74,54 +79,16 @@ impl Server {
     }
 
     #[inline]
-    pub(crate) fn run_bfsm(&mut self) {
-        for stream in self.listener.incoming() {
-            if { *self.is_game_ended.get_mut() } {
-                break;
-            }
-
-            if let Ok(mut stream) = stream {
-                let mut data = [0];
-
-                while match stream.read(&mut data) {
-                    Ok(size) => match size {
-                        0 => false,
-
-                        _ => {
-                            let command = unsafe { *data.get_unchecked(0) };
-
-                            match command {
-                                PLAYER_IS_FOUND => {}
-
-                                PLAYER_MOVED => {}
-
-                                _ => unreachable!(),
-                            }
-
-                            true
-                        }
-                    },
-
-                    Err(_) => unsafe {
-                        stream.shutdown(Shutdown::Both).unwrap_unchecked();
-                        false
-                    },
-                } {}
-            }
-        }
+    pub(crate) fn send_role(stream: &mut TcpStream, client_player_role: u8) {
+        log::debug!("{} send_role", TAG);
+        log_err_if_exists(stream.write(&[COMMAND_SHOW_ROLE, client_player_role]))
     }
 
     #[inline]
-    pub(crate) fn send_role(stream: &mut TcpStream, client_player_role: u8) -> StackTraceResult {
-        get_err_if_exists(stream.write(&[COMMAND_SHOW_ROLE, client_player_role]))
-    }
+    pub(crate) fn send_correct_move(stream: &mut TcpStream, table: [[u8; 3]; 3]) {
+        log::debug!("{} send_correct_move", TAG);
 
-    #[inline]
-    pub(crate) fn send_correct_move(
-        stream: &mut TcpStream,
-        table: [[u8; 3]; 3],
-    ) -> StackTraceResult {
-        get_err_if_exists(unsafe {
+        log_err_if_exists(unsafe {
             stream.write(&[
                 COMMAND_CORRECT_MOVE,
                 *table.get_unchecked(0).get_unchecked(0),
@@ -138,12 +105,14 @@ impl Server {
     }
 
     #[inline]
-    pub(crate) fn send_invalid_move(stream: &mut TcpStream) -> StackTraceResult {
-        get_err_if_exists(stream.write(&[COMMAND_INVALID_MOVE]))
+    pub(crate) fn send_invalid_move(stream: &mut TcpStream) {
+        log::debug!("{} send_invalid_move", TAG);
+        log_err_if_exists(stream.write(&[COMMAND_INVALID_MOVE]))
     }
 
     #[inline]
-    pub(crate) fn send_game_finished(stream: &mut TcpStream) -> StackTraceResult {
-        get_err_if_exists(stream.write(&[COMMAND_FINISH_GAME]))
+    pub(crate) fn send_game_finished(stream: &mut TcpStream) {
+        log::debug!("{} send_game_finished", TAG);
+        log_err_if_exists(stream.write(&[COMMAND_FINISH_GAME]))
     }
 }

@@ -18,50 +18,50 @@ JNIEXPORT jobject JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPl
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
  * Method:    sendReady
- * Signature: ()Ljava/lang/String;
+ * Signature: (Ljava/nio/ByteBuffer;)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendReady
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jobject);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
  * Method:    sendMove
- * Signature: (BB)Ljava/lang/String;
+ * Signature: (Ljava/nio/ByteBuffer;BB)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendMove
-  (JNIEnv *, jobject, jbyte, jbyte);
-
-/*
- * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
- * Method:    readCommand
- * Signature: ()B
- */
-JNIEXPORT jbyte JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readCommand
-  (JNIEnv *, jobject);
-
-/*
- * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
- * Method:    readRole
- * Signature: ()B
- */
-JNIEXPORT jbyte JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readRole
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jobject, jbyte, jbyte);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
  * Method:    readTable
- * Signature: ()[[B
+ * Signature: (Ljava/nio/ByteBuffer;)[[B
  */
 JNIEXPORT jobjectArray JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readTable
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jobject);
+
+/*
+ * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
+ * Method:    readCommand
+ * Signature: (Ljava/nio/ByteBuffer;)B
+ */
+JNIEXPORT jbyte JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readCommand
+  (JNIEnv *, jclass, jobject);
+
+/*
+ * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
+ * Method:    readRole
+ * Signature: (Ljava/nio/ByteBuffer;)B
+ */
+JNIEXPORT jbyte JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readRole
+  (JNIEnv *, jclass, jobject);
 
 /*
  * Class:     com_dinaraparanid_tictactoe_native_libs_ClientPlayerNative
  * Method:    drop
- * Signature: ()V
+ * Signature: (Ljava/nio/ByteBuffer;)V
  */
 JNIEXPORT void JNICALL Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_drop
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jobject);
 
 #ifdef __cplusplus
 }

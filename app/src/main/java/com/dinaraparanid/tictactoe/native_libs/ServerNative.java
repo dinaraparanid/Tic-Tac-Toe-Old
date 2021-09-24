@@ -3,6 +3,9 @@ package com.dinaraparanid.tictactoe.native_libs;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.dinaraparanid.tictactoe.Server;
+
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 
 public final class ServerNative {
@@ -11,34 +14,79 @@ public final class ServerNative {
         System.loadLibrary("tictactoe");
     }
 
-    private ByteBuffer ptr = null;
+    @Nullable
+    private ByteBuffer ptr;
+
+    @NonNull
+    private WeakReference<Server> server;
 
     private ServerNative() {}
 
     @Nullable
-    public static final ServerNative create(@NonNull final String ip) {
-        final ServerNative server = new ServerNative();
-        server.ptr = init(ip);
-        return server.ptr == null ? null : server;
+    public static final ServerNative create(
+            @NonNull final Server server,
+            @NonNull final String ip
+    ) {
+        final ServerNative serverNative = new ServerNative();
+        serverNative.ptr = init(ip);
+
+        if (serverNative.ptr == null)
+            return null;
+
+        serverNative.server = new WeakReference<>(server);
+        return serverNative;
     }
 
     @Nullable
     private static final native ByteBuffer init(@NonNull final String ip);
 
     @NonNull
-    public final native byte[] readMove();
+    private static final native byte[] readMove(@NonNull final ByteBuffer pointerBuffer);
 
-    public final native void runBFSM();
+    private final native void runBFSM(@NonNull final ByteBuffer pointerBuffer);
 
-    @Nullable
-    public final native String sendCorrectMove(@NonNull final byte[][] table);
+    private static final native void sendCorrectMove(
+            @NonNull final ByteBuffer pointerBuffer,
+            @NonNull final byte[][] table
+    );
 
-    @Nullable
-    public final native String sendInvalidMove();
+    private static final native void sendInvalidMove(@NonNull final ByteBuffer pointerBuffer);
 
-    @Nullable
-    public final native String sendGameFinished();
+    private static final native void sendGameFinished(@NonNull final ByteBuffer pointerBuffer);
 
-    @Nullable
-    public final native String sendRole(final byte clientPlayerRole);
+    private static final native void sendRole(
+            @NonNull final ByteBuffer pointerBuffer,
+            final byte clientPlayerRole
+    );
+
+    @NonNull
+    public final byte[] readMove() {
+        return readMove(ptr);
+    }
+
+    public final void runBFSM() { runBFSM(ptr); }
+
+    public final void sendCorrectMove(@NonNull final byte[][] table) {
+        sendCorrectMove(ptr, table);
+    }
+
+    public final void sendInvalidMove() { sendInvalidMove(ptr); }
+
+    public final void sendGameFinished() { sendGameFinished(ptr); }
+
+    public final void sendRole(final byte clientPlayerRole) {
+        sendRole(ptr, clientPlayerRole);
+    }
+
+    private final void runClientPlayerIsFoundState() {
+        server.get().runClientPlayerIsFoundState();
+    }
+
+    private final void runSendRolesState() {
+        server.get().runSendRolesState();
+    }
+
+    private final void runClientPlayerIsMovedState() {
+        server.get().runClientPlayerIsMovedState();
+    }
 }

@@ -13,6 +13,12 @@ import org.jetbrains.annotations.Contract;
 
 public final class MainApplication extends Application {
 
+    static {
+        System.loadLibrary("tictactoe");
+    }
+
+    private static final native void initNativeLogger();
+
     @Contract(pure = true)
     public final boolean isServiceBound() { return serviceBound; }
 
@@ -36,5 +42,6 @@ public final class MainApplication extends Application {
     public void onCreate() {
         super.onCreate();
         Player.ApplicationAccessor.application = this;
+        initNativeLogger();
     }
 }

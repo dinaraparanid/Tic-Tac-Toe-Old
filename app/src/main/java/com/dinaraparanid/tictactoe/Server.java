@@ -22,8 +22,6 @@ import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NonNls;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -143,7 +141,11 @@ public final class Server extends Service {
                 sendIp(hostName.get());
 
                 // TODO: Incorrect server
-                serverNative = Objects.requireNonNull(ServerNative.create(hostName.get()));
+                serverNative = Objects.requireNonNull(
+                        ServerNative.create(
+                                Server.this, hostName.get()
+                        )
+                );
 
                 isGameEnded.set(false);
                 isClientPlayerConnected.set(false);
@@ -339,7 +341,9 @@ public final class Server extends Service {
             );
 
             // TODO: incorrect server
-            serverNative = Objects.requireNonNull(ServerNative.create(hostName.get()));
+            serverNative = Objects.requireNonNull(
+                    ServerNative.create(this, hostName.get())
+            );
             sendIp(hostName.get());
         });
     }
@@ -438,24 +442,18 @@ public final class Server extends Service {
         manager.unregisterReceiver(killReceiver);
     }
 
-    public final void runClientPlayerIsFoundState() {
-        new ClientPlayerIsFoundState().run();
-    }
-
-    public final void runSendRolesState() {
-        new SendRolesState().run();
-    }
-
-    public final void runClientPlayerIsMovedState() {
-        new ClientPlayerIsMovedState().run();
-    }
+    public final void runClientPlayerIsFoundState() { new ClientPlayerIsFoundState().run(); }
+    public final void runSendRolesState() { new SendRolesState().run(); }
+    public final void runClientPlayerIsMovedState() { new ClientPlayerIsMovedState().run(); }
 
     protected final boolean checkMovement(@NonNull final Coordinate coordinate) {
         return gameTable[coordinate.getY()][coordinate.getX()] == 0;
     }
 
     @Contract(pure = true)
-    protected final boolean checkMovement(final byte y, final byte x) { return gameTable[y][x] == 0; }
+    protected final boolean checkMovement(final byte y, final byte x) {
+        return gameTable[y][x] == 0;
+    }
 
     protected final void sendIp(@NonNull final String ip) {
         Log.d(TAG, "Send IP");

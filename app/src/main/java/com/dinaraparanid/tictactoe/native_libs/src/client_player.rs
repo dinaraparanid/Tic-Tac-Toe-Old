@@ -1,15 +1,17 @@
+extern crate log;
+
 use std::{
     io::{Read, Write},
     net::TcpStream,
-    result::Result,
 };
 
 use crate::utils::*;
-use std::io::Error;
 
+const TAG: &str = "client_player";
 pub(crate) const PLAYER_IS_FOUND: u8 = 0;
 pub(crate) const PLAYER_MOVED: u8 = 1;
 
+#[repr(C)]
 pub(crate) struct ClientPlayer {
     stream: TcpStream,
 }
@@ -17,25 +19,30 @@ pub(crate) struct ClientPlayer {
 impl ClientPlayer {
     #[inline]
     pub(crate) fn new(ip: String) -> std::io::Result<ClientPlayer> {
+        log::debug!("client_player new");
+
         Ok(ClientPlayer {
             stream: TcpStream::connect(format!("{}:1337", ip))?,
         })
     }
 
     #[inline]
-    pub(crate) fn send_ready(&mut self) -> StackTraceResult {
-        get_err_if_exists(self.stream.write(&[PLAYER_IS_FOUND]))
+    pub(crate) fn send_ready(&mut self) {
+        log::debug!("{} send_ready", TAG);
+        log_err_if_exists(self.stream.write(&[PLAYER_IS_FOUND]))
     }
 
     #[inline]
-    pub(crate) fn send_move(&mut self, y: u8, x: u8) -> StackTraceResult {
-        get_err_if_exists(self.stream.write(&[PLAYER_MOVED, y, x]))
+    pub(crate) fn send_move(&mut self, y: u8, x: u8) {
+        log::debug!("{} send_move", TAG);
+        log_err_if_exists(self.stream.write(&[PLAYER_MOVED, y, x]))
     }
 
     #[inline]
     pub(crate) fn read_command(&mut self) -> StackTraceValueResult<u8> {
-        let mut data = [0];
+        log::debug!("{} read_command", TAG);
 
+        let mut data = [0];
         handle_err_value(self.stream.read_exact(&mut data), unsafe {
             *data.get_unchecked(0)
         })
@@ -43,8 +50,9 @@ impl ClientPlayer {
 
     #[inline]
     pub(crate) fn read_role(&mut self) -> StackTraceValueResult<u8> {
-        let mut data = [0];
+        log::debug!("{} read_role", TAG);
 
+        let mut data = [0];
         handle_err_value(self.stream.read_exact(&mut data), unsafe {
             *data.get_unchecked(0)
         })
@@ -52,8 +60,9 @@ impl ClientPlayer {
 
     #[inline]
     pub(crate) fn read_table(&mut self) -> StackTraceValueResult<[[u8; 3]; 3]> {
-        let mut data = [0; 9];
+        log::debug!("{} read_table", TAG);
 
+        let mut data = [0; 9];
         handle_err_callback(self.stream.read_exact(&mut data), || {
             let mut table = [[0; 3]; 3];
             let mut iter = data.iter();
