@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.dinaraparanid.tictactoe.ServerPlayer;
 import com.dinaraparanid.tictactoe.native_libs.ServerNative;
 import com.dinaraparanid.tictactoe.utils.Coordinate;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
@@ -211,7 +212,8 @@ public final class Server extends Service {
                     gameTable[coordinate.getY()][coordinate.getX()] = 1;
 
                     executor.execute(() -> {
-                        serverNative.sendCorrectMove(gameTable);
+                        try { sendCorrectMove(); }
+                        catch (ExecutionException | InterruptedException ignored) {}
 
                         boolean isFilled = true;
 
@@ -226,7 +228,8 @@ public final class Server extends Service {
 
                         if (isFilled) {
                             isGameEnded.set(true);
-                            serverNative.sendGameFinished();
+                            try { sendGameFinished(); }
+                            catch (final ExecutionException | InterruptedException ignored) {}
                         }
                     });
                 } else {
@@ -310,7 +313,7 @@ public final class Server extends Service {
                         isGameEnded.set(true);
 
                         try {
-                            sendGameFinish();
+                            sendGameFinished();
                         } catch (final ExecutionException | InterruptedException e) {
                             e.printStackTrace();
                         }
@@ -517,7 +520,7 @@ public final class Server extends Service {
         executor.submit(serverNative::sendInvalidMove).get();
     }
 
-    protected void sendGameFinish()
+    protected void sendGameFinished()
             throws ExecutionException, InterruptedException {
         Log.d(TAG, "Game finished");
 

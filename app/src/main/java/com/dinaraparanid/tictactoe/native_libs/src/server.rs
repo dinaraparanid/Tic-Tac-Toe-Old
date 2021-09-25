@@ -14,7 +14,6 @@ const COMMAND_CORRECT_MOVE: u8 = 1;
 const COMMAND_INVALID_MOVE: u8 = 2;
 const COMMAND_FINISH_GAME: u8 = 3;
 
-#[repr(C)]
 pub(crate) struct Server {
     listener: TcpListener,
     is_game_ended: AtomicBool,
@@ -69,7 +68,7 @@ impl Server {
     }
 
     #[inline]
-    pub(crate) fn read_move(stream: &mut TcpStream) -> StackTraceValueResult<(u8, u8)> {
+    pub(crate) fn read_move(stream: &mut TcpStream) -> TcpIOResult<(u8, u8)> {
         log::debug!("{} read_move", TAG);
 
         let mut data = [0; 2];
@@ -88,20 +87,9 @@ impl Server {
     pub(crate) fn send_correct_move(stream: &mut TcpStream, table: [[u8; 3]; 3]) {
         log::debug!("{} send_correct_move", TAG);
 
-        log_err_if_exists(unsafe {
-            stream.write(&[
-                COMMAND_CORRECT_MOVE,
-                *table.get_unchecked(0).get_unchecked(0),
-                *table.get_unchecked(0).get_unchecked(1),
-                *table.get_unchecked(0).get_unchecked(2),
-                *table.get_unchecked(1).get_unchecked(0),
-                *table.get_unchecked(1).get_unchecked(1),
-                *table.get_unchecked(1).get_unchecked(2),
-                *table.get_unchecked(2).get_unchecked(0),
-                *table.get_unchecked(2).get_unchecked(1),
-                *table.get_unchecked(2).get_unchecked(2),
-            ])
-        })
+        let mut f = vec![COMMAND_CORRECT_MOVE];
+        f.extend(table.iter().flat_map(|x| *x));
+        log_err_if_exists(unsafe { stream.write(f.as_slice()) })
     }
 
     #[inline]

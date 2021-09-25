@@ -44,18 +44,11 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
         (**env).GetStringUTFChars.unwrap_unchecked()(env, ip, &mut 0) as *mut c_char as *mut u8;
 
     match ClientPlayer::new(String::from_raw_parts(ip, ip_size, ip_size)) {
-        Ok(mut player) => {
-            let ptr = &mut player as *mut ClientPlayer as *mut c_void;
-            mem::forget(player);
-
-            log::debug!("Client pointer: {:p}", ptr);
-
-            (**env).NewDirectByteBuffer.unwrap_unchecked()(
-                env,
-                ptr,
-                mem::size_of::<*mut ClientPlayer>() as jlong,
-            )
-        }
+        Ok(player) => (**env).NewDirectByteBuffer.unwrap_unchecked()(
+            env,
+            Box::into_raw(Box::new(player)) as *mut c_void,
+            mem::size_of::<*mut ClientPlayer>() as jlong,
+        ),
 
         Err(_) => ptr::null_mut(),
     }
@@ -73,9 +66,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
     _class: jclass,
     pointer_buffer: jobject,
 ) {
-    let ptr = get_client_pointer(env, pointer_buffer);
-    log::debug!("Send Ready Client pointer {:p}", ptr);
-    (*ptr).send_ready()
+    (*get_client_pointer(env, pointer_buffer)).send_ready()
 }
 
 #[no_mangle]
@@ -132,14 +123,18 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
         (**env).NewByteArray.unwrap_unchecked()(env, 3),
     );
 
-    (0..=3_usize).for_each(|i| {
+    (0..3_usize).for_each(|i| {
+        let byte_array = (**env).NewByteArray.unwrap_unchecked()(env, 3);
+
         (**env).SetByteArrayRegion.unwrap_unchecked()(
             env,
-            (**env).GetObjectArrayElement.unwrap_unchecked()(env, java_table, i as jsize),
+            byte_array,
             0,
             3,
-            table.get_unchecked(i) as *const u8 as *const jbyte,
-        )
+            table.get_unchecked(i).as_ptr() as *const jbyte,
+        );
+
+        (**env).SetObjectArrayElement.unwrap_unchecked()(env, java_table, i as jsize, byte_array)
     });
 
     java_table
@@ -152,6 +147,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
     _class: jclass,
     pointer_buffer: jobject,
 ) {
+    log::debug!("Client drop");
     ptr::drop_in_place(get_client_pointer(env, pointer_buffer))
 }
 
@@ -167,16 +163,11 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
         (**env).GetStringUTFChars.unwrap_unchecked()(env, ip, &mut 0) as *mut c_char as *mut u8;
 
     match Server::new(String::from_raw_parts(ip, ip_size, ip_size)) {
-        Ok(mut server) => {
-            let ptr = &mut server as *mut Server as *mut c_void;
-            mem::forget(server);
-
-            (**env).NewDirectByteBuffer.unwrap_unchecked()(
-                env,
-                ptr,
-                mem::size_of::<*mut Server>() as jlong,
-            )
-        }
+        Ok(server) => (**env).NewDirectByteBuffer.unwrap_unchecked()(
+            env,
+            Box::into_raw(Box::new(server)) as *mut c_void,
+            mem::size_of::<*mut Server>() as jlong,
+        ),
 
         Err(_) => ptr::null_mut(),
     }
@@ -342,7 +333,7 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
         &mut (*get_server_pointer(env, pointer_buffer))
             .get_current_stream_mut()
             .as_mut()
-            .unwrap(),
+            .unwrap_unchecked(),
     )
 }
 
@@ -353,6 +344,8 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
     _class: jobject,
     pointer_buffer: jobject,
 ) {
+    log::debug!("Server drop");
+
     let ptr = get_server_pointer(env, pointer_buffer);
 
     Server::send_game_finished(

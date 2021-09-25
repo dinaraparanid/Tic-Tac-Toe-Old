@@ -47,7 +47,7 @@ public final class ClientPlayerNative {
 
     public final void sendMove(final byte y, final  byte x) { sendMove(ptr, y, x); }
 
-    @Nullable
+    @NonNull
     public final byte[][] readTable() { return readTable(ptr); }
 
     public final byte readCommand() { return readCommand(ptr); }
