@@ -3,7 +3,7 @@ extern crate log;
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
-    sync::atomic::AtomicBool,
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use crate::utils::*;
@@ -68,6 +68,11 @@ impl Server {
     }
 
     #[inline]
+    pub(crate) fn set_game_ended_mut(&mut self, is_game_ended: bool) {
+        self.is_game_ended.store(is_game_ended, Ordering::Relaxed)
+    }
+
+    #[inline]
     pub(crate) fn read_move(stream: &mut TcpStream) -> TcpIOResult<(u8, u8)> {
         log::debug!("{} read_move", TAG);
 
@@ -89,7 +94,7 @@ impl Server {
 
         let mut f = vec![COMMAND_CORRECT_MOVE];
         f.extend(table.iter().flat_map(|x| *x));
-        log_err_if_exists(unsafe { stream.write(f.as_slice()) })
+        log_err_if_exists(stream.write(f.as_slice()))
     }
 
     #[inline]

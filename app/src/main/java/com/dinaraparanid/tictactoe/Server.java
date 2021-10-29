@@ -173,10 +173,8 @@ public final class Server extends Service {
                         if(!isClientPlayerConnected.get())
                             await = noClientCondition.awaitNanos(NO_PLAYER_FOUND);
 
-                        if (await <= 0) {
+                        if (await <= 0)
                             sendNoPlayerFound();
-                            stop();
-                        }
                     } catch (final InterruptedException e) {
                         e.printStackTrace();
                     } finally {
@@ -191,10 +189,8 @@ public final class Server extends Service {
     private final BroadcastReceiver cancelGameReceiver = new BroadcastReceiver() {
         @Override
         public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(BROADCAST_CANCEL_GAME)) {
+            if (intent.getAction().equals(BROADCAST_CANCEL_GAME))
                 Log.d(TAG, "Cancel game");
-                stop();
-            }
         }
     };
 
@@ -208,7 +204,7 @@ public final class Server extends Service {
                 final Coordinate coordinate = (Coordinate) intent
                         .getSerializableExtra(ServerPlayer.COORDINATE_KEY);
 
-                if (checkMovement(coordinate)) {
+                if (isMoveCorrect(coordinate)) {
                     gameTable[coordinate.getY()][coordinate.getX()] = 1;
 
                     executor.execute(() -> {
@@ -247,17 +243,6 @@ public final class Server extends Service {
         }
     };
 
-    @NonNull
-    private final BroadcastReceiver killReceiver = new BroadcastReceiver() {
-        @Override
-        public final void onReceive(@NonNull final Context context, @NonNull final Intent intent) {
-            if (intent.getAction().equals(BROADCAST_KILL)) {
-                Log.d(TAG, "Kill");
-                stop();
-            }
-        }
-    };
-
     private final class ClientPlayerIsFoundState extends State {
         ClientPlayerIsFoundState() {
             super(() -> {
@@ -289,7 +274,7 @@ public final class Server extends Service {
                 final byte y = buf[0];
                 final byte x = buf[1];
 
-                if (checkMovement(y, x)) {
+                if (isMoveCorrect(y, x)) {
                     gameTable[y][x] = 2;
 
                     try {
@@ -317,8 +302,6 @@ public final class Server extends Service {
                         } catch (final ExecutionException | InterruptedException e) {
                             e.printStackTrace();
                         }
-
-                        stop();
                     }
                 } else {
                     try {
@@ -364,7 +347,6 @@ public final class Server extends Service {
         registerCancelGameReceiver();
         registerServerPlayerMovedReceiver();
         registerServerPlayerDisconnectedReceiver();
-        registerKillReceiver();
 
         try {
             createServerSocketAsync().get();
@@ -425,15 +407,6 @@ public final class Server extends Service {
                 );
     }
 
-    private final void registerKillReceiver() {
-        LocalBroadcastManager
-                .getInstance(getApplicationContext())
-                .registerReceiver(
-                        killReceiver,
-                        new IntentFilter(BROADCAST_KILL)
-                );
-    }
-
     protected final void unregisterReceivers() {
         final LocalBroadcastManager manager = LocalBroadcastManager
                 .getInstance(getApplicationContext());
@@ -442,19 +415,18 @@ public final class Server extends Service {
         manager.unregisterReceiver(cancelGameReceiver);
         manager.unregisterReceiver(serverPlayerMovedReceiver);
         manager.unregisterReceiver(serverPlayerDisconnectedReceiver);
-        manager.unregisterReceiver(killReceiver);
     }
 
     public final void runClientPlayerIsFoundState() { new ClientPlayerIsFoundState().run(); }
     public final void runSendRolesState() { new SendRolesState().run(); }
     public final void runClientPlayerIsMovedState() { new ClientPlayerIsMovedState().run(); }
 
-    protected final boolean checkMovement(@NonNull final Coordinate coordinate) {
+    protected final boolean isMoveCorrect(@NonNull final Coordinate coordinate) {
         return gameTable[coordinate.getY()][coordinate.getX()] == 0;
     }
 
     @Contract(pure = true)
-    protected final boolean checkMovement(final byte y, final byte x) {
+    protected final boolean isMoveCorrect(final byte y, final byte x) {
         return gameTable[y][x] == 0;
     }
 
@@ -529,10 +501,5 @@ public final class Server extends Service {
                 .sendBroadcast(new Intent(BROADCAST_GAME_FINISHED));
 
         executor.submit(serverNative::sendGameFinished).get();
-    }
-
-    protected final void stop() {
-        unregisterReceivers();
-        stopSelf();
     }
 }

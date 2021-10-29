@@ -113,11 +113,13 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
     }
 
     public final void showInvalidMove() {
-        new AlertDialog.Builder(requireContext())
-                .setMessage(R.string.invalid_move)
-                .setCancelable(true)
-                .setPositiveButton(R.string.ok, (dialog, which) -> dialog.dismiss())
-                .show();
+        requireActivity().runOnUiThread(() ->
+            new AlertDialog.Builder(requireContext())
+                    .setMessage(R.string.invalid_move)
+                    .setCancelable(true)
+                    .setPositiveButton(R.string.ok, (dialog, which) -> dialog.dismiss())
+                    .show()
+        );
     }
 
     public final void gameFinished() {

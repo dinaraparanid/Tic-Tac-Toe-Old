@@ -20,11 +20,12 @@ use std::{
     net::Shutdown,
     os::raw::c_char,
     ptr,
+    sync::atomic::Ordering,
 };
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_MainApplication_initNativeLogger(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_MainApplication_initNativeLogger(
     _env: *mut JNIEnv,
     _class: jclass,
 ) {
@@ -54,76 +55,93 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
     }
 }
 
-#[inline]
-unsafe fn get_client_pointer(env: *mut JNIEnv, pointer_buffer: jobject) -> *mut ClientPlayer {
-    get_pointer(env, pointer_buffer)
-}
-
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendReady(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendReady(
     env: *mut JNIEnv,
     _class: jclass,
     pointer_buffer: jobject,
 ) {
-    (*get_client_pointer(env, pointer_buffer)).send_ready()
+    unsafe {
+        get_struct::<ClientPlayer>(env, pointer_buffer)
+            .unwrap_unchecked()
+            .send_ready()
+    }
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendMove(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_sendMove(
     env: *mut JNIEnv,
     _class: jclass,
     pointer_buffer: jobject,
     y: jbyte,
     x: jbyte,
 ) {
-    (*get_client_pointer(env, pointer_buffer)).send_move(y as u8, x as u8)
+    unsafe {
+        get_struct::<ClientPlayer>(env, pointer_buffer)
+            .unwrap_unchecked()
+            .send_move(y as u8, x as u8)
+    }
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readCommand(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readCommand(
     env: *mut JNIEnv,
     _class: jclass,
     pointer_buffer: jobject,
 ) -> jbyte {
-    (*get_client_pointer(env, pointer_buffer))
-        .read_command()
-        .unwrap() as jbyte
+    unsafe {
+        get_struct::<ClientPlayer>(env, pointer_buffer)
+            .unwrap_unchecked()
+            .read_command()
+            .unwrap_or(3) as jbyte
+    }
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readRole(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readRole(
     env: *mut JNIEnv,
     _class: jclass,
     pointer_buffer: jobject,
 ) -> jbyte {
-    (*get_client_pointer(env, pointer_buffer))
-        .read_role()
-        .unwrap() as jbyte
+    unsafe {
+        get_struct::<ClientPlayer>(env, pointer_buffer)
+            .unwrap_unchecked()
+            .read_role()
+            .unwrap() as jbyte
+    }
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readTable(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_readTable(
     env: *mut JNIEnv,
     _class: jclass,
     pointer_buffer: jobject,
 ) -> jobjectArray {
-    let table = (*get_client_pointer(env, pointer_buffer))
-        .read_table()
-        .unwrap();
+    let table = unsafe {
+        get_struct::<ClientPlayer>(env, pointer_buffer)
+            .unwrap_unchecked()
+            .read_table()
+            .unwrap()
+    };
 
-    let java_table = (**env).NewObjectArray.unwrap_unchecked()(
-        env,
-        3,
-        (**env).FindClass.unwrap_unchecked()(env, CString::new("[B").unwrap_unchecked().as_ptr()),
-        (**env).NewByteArray.unwrap_unchecked()(env, 3),
-    );
+    let java_table = unsafe {
+        (**env).NewObjectArray.unwrap_unchecked()(
+            env,
+            3,
+            (**env).FindClass.unwrap_unchecked()(
+                env,
+                CString::new("[B").unwrap_unchecked().as_ptr(),
+            ),
+            (**env).NewByteArray.unwrap_unchecked()(env, 3),
+        )
+    };
 
-    (0..3_usize).for_each(|i| {
+    (0..3_usize).for_each(|i| unsafe {
         let byte_array = (**env).NewByteArray.unwrap_unchecked()(env, 3);
 
         (**env).SetByteArrayRegion.unwrap_unchecked()(
@@ -142,13 +160,16 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Clie
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_drop(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ClientPlayerNative_drop(
     env: *mut JNIEnv,
     _class: jclass,
     pointer_buffer: jobject,
 ) {
     log::debug!("Client drop");
-    ptr::drop_in_place(get_client_pointer(env, pointer_buffer))
+
+    if let Some(client_player) = get_struct::<ClientPlayer>(env, pointer_buffer) {
+        unsafe { ptr::drop_in_place(client_player) }
+    }
 }
 
 #[no_mangle]
@@ -174,48 +195,50 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
 }
 
 #[inline]
-unsafe fn get_server_pointer(env: *mut JNIEnv, pointer_buffer: jobject) -> *mut Server {
-    get_pointer(env, pointer_buffer)
-}
-
-#[inline]
-unsafe fn call_server_method(env: *mut JNIEnv, class: jobject, method: &str) {
-    (**env).CallVoidMethod.unwrap_unchecked()(
-        env,
-        class,
-        (**env).GetMethodID.unwrap_unchecked()(
+fn call_server_method(env: *mut JNIEnv, class: jobject, method: &str) {
+    unsafe {
+        (**env).CallVoidMethod.unwrap_unchecked()(
             env,
-            (**env).GetObjectClass.unwrap_unchecked()(env, class),
-            CString::new(method).unwrap_unchecked().as_ptr(),
-            CString::new("()V").unwrap_unchecked().as_ptr(),
-        ),
-    )
+            class,
+            (**env).GetMethodID.unwrap_unchecked()(
+                env,
+                (**env).GetObjectClass.unwrap_unchecked()(env, class),
+                CString::new(method).unwrap_unchecked().as_ptr(),
+                CString::new("()V").unwrap_unchecked().as_ptr(),
+            ),
+        )
+    }
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_readMove(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_readMove(
     env: *mut JNIEnv,
     _class: jclass,
     pointer_buffer: jobject,
 ) -> jbyteArray {
-    match Server::read_move(
-        &mut (*get_server_pointer(env, pointer_buffer))
-            .get_current_stream_mut()
-            .as_mut()
-            .unwrap_unchecked(),
-    ) {
-        Ok(coordinate) => {
+    match unsafe {
+        Server::read_move(
+            get_struct::<Server>(env, pointer_buffer)
+                .unwrap_unchecked()
+                .get_current_stream_mut()
+                .as_mut()
+                .unwrap(),
+        )
+    } {
+        Ok((y, x)) => unsafe {
             let buf = (**env).NewByteArray.unwrap_unchecked()(env, 2);
+
             (**env).SetByteArrayRegion.unwrap_unchecked()(
                 env,
                 buf,
                 0,
                 2,
-                &[coordinate.0, coordinate.1] as *const u8 as *const jbyte,
+                &[y, x] as *const u8 as *const jbyte,
             );
+
             buf
-        }
+        },
 
         Err(_) => ptr::null_mut(),
     }
@@ -223,97 +246,116 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_runBFSM(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_runBFSM(
     env: *mut JNIEnv,
     class: jobject,
     pointer_buffer: jobject,
 ) {
-    let server = get_server_pointer(env, pointer_buffer);
+    let server =
+        unsafe { get_struct::<Server>(env, pointer_buffer).unwrap_unchecked() } as *mut Server;
 
-    for stream in (*server).get_listener().incoming() {
-        if { *(*server).get_game_ended_mut().get_mut() } {
+    for stream in unsafe { (*server).get_listener().incoming() } {
+        if unsafe { (*server).get_game_ended().load(Ordering::Relaxed) } {
             break;
         }
 
         if let Ok(stream) = stream {
-            (*get_server_pointer(env, pointer_buffer)).set_current_stream(stream);
-
+            unsafe {
+                // Did I fuck up the compiler or fuck myself?
+                (*server).set_current_stream(stream)
+            }
             let mut data = [0];
-
-            while match {
-                (*get_server_pointer(env, pointer_buffer))
-                    .get_current_stream()
-                    .as_ref()
-                    .unwrap_unchecked()
-                    .read(&mut data)
-            } {
-                Ok(size) => match size {
-                    0 => false,
-
-                    _ => {
-                        match *data.get_unchecked(0) {
-                            PLAYER_IS_FOUND => {
-                                log::debug!("Native command: PLAYER_IS_FOUND");
-                                call_server_method(env, class, "runClientPlayerIsFoundState");
-                                call_server_method(env, class, "runSendRolesState")
-                            }
-
-                            PLAYER_MOVED => {
-                                log::debug!("Native command: PLAYER_MOVED");
-                                call_server_method(env, class, "runClientPlayerIsMovedState")
-                            }
-
-                            _ => {
-                                log::debug!("Native unknown command");
-                                unreachable!()
-                            }
-                        }
-
-                        true
-                    }
-                },
-
-                Err(_) => {
-                    (*get_server_pointer(env, pointer_buffer))
-                        .get_current_stream()
-                        .as_ref()
-                        .unwrap_unchecked()
-                        .shutdown(Shutdown::Both)
-                        .unwrap_unchecked();
-                    false
-                }
-            } {}
+            while read_command_if_not_null(env, class, pointer_buffer, &mut data) {}
         }
     }
 }
 
 #[inline]
-unsafe fn get_row_from_table(env: *mut JNIEnv, table: jobjectArray, index: jsize) -> [u8; 3] {
-    let row = (**env).GetObjectArrayElement.unwrap_unchecked()(env, table, index);
+fn read_command_if_not_null(
+    env: *mut JNIEnv,
+    class: jobject,
+    pointer_buffer: jobject,
+    data: &mut [u8; 1],
+) -> bool {
+    let server = unsafe { get_struct::<Server>(env, pointer_buffer).unwrap_unchecked() };
+
+    if server.get_game_ended().load(Ordering::Relaxed) {
+        return false;
+    }
+
+    match server.get_current_stream().as_ref().unwrap().read(data) {
+        Ok(size) => match size {
+            0 => false,
+
+            _ => {
+                match unsafe { *data.get_unchecked(0) } {
+                    PLAYER_IS_FOUND => {
+                        log::debug!("Native command: PLAYER_IS_FOUND");
+                        call_server_method(env, class, "runClientPlayerIsFoundState");
+                        call_server_method(env, class, "runSendRolesState")
+                    }
+
+                    PLAYER_MOVED => {
+                        log::debug!("Native command: PLAYER_MOVED");
+                        call_server_method(env, class, "runClientPlayerIsMovedState")
+                    }
+
+                    _ => {
+                        log::debug!("Native unknown command");
+                        unreachable!()
+                    }
+                }
+
+                true
+            }
+        },
+
+        Err(_) => unsafe {
+            server
+                .get_current_stream()
+                .as_ref()
+                .unwrap_unchecked()
+                .shutdown(Shutdown::Both)
+                .unwrap_unchecked();
+            false
+        },
+    }
+}
+
+#[inline]
+fn get_row_from_table(env: *mut JNIEnv, table: jobjectArray, index: jsize) -> [u8; 3] {
+    let row = unsafe { (**env).GetObjectArrayElement.unwrap_unchecked()(env, table, index) };
     let mut buf = [0, 0, 0];
-    (**env).GetByteArrayRegion.unwrap_unchecked()(
-        env,
-        row,
-        0,
-        3,
-        &mut buf as *mut u8 as *mut jbyte,
-    );
+
+    unsafe {
+        (**env).GetByteArrayRegion.unwrap_unchecked()(
+            env,
+            row,
+            0,
+            3,
+            &mut buf as *mut u8 as *mut jbyte,
+        )
+    }
+
     buf
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendCorrectMove(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendCorrectMove(
     env: *mut JNIEnv,
     _class: jclass,
     pointer_buffer: jobject,
     table: jobjectArray,
 ) {
     Server::send_correct_move(
-        &mut (*get_server_pointer(env, pointer_buffer))
-            .get_current_stream_mut()
-            .as_mut()
-            .unwrap_unchecked(),
+        unsafe {
+            get_struct::<Server>(env, pointer_buffer)
+                .unwrap_unchecked()
+                .get_current_stream_mut()
+                .as_mut()
+                .unwrap()
+        },
         [
             get_row_from_table(env, table, 0),
             get_row_from_table(env, table, 1),
@@ -324,53 +366,54 @@ pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_Serv
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendInvalidMove(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendInvalidMove(
     env: *mut JNIEnv,
     _class: jclass,
     pointer_buffer: jobject,
 ) {
-    Server::send_invalid_move(
-        &mut (*get_server_pointer(env, pointer_buffer))
+    Server::send_invalid_move(unsafe {
+        get_struct::<Server>(env, pointer_buffer)
+            .unwrap_unchecked()
             .get_current_stream_mut()
             .as_mut()
-            .unwrap_unchecked(),
-    )
+            .unwrap()
+    })
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendGameFinished(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendGameFinished(
     env: *mut JNIEnv,
     _class: jobject,
     pointer_buffer: jobject,
 ) {
-    log::debug!("Server drop");
+    let server = unsafe { get_struct::<Server>(env, pointer_buffer).unwrap_unchecked() };
+    server.set_game_ended_mut(true);
 
-    let ptr = get_server_pointer(env, pointer_buffer);
+    Server::send_game_finished(unsafe {
+        server.get_current_stream_mut().as_mut().unwrap_unchecked()
+    });
 
-    Server::send_game_finished(
-        (&mut *ptr)
-            .get_current_stream_mut()
-            .as_mut()
-            .unwrap_unchecked(),
-    );
-
-    ptr::drop_in_place(ptr);
+    unsafe { ptr::drop_in_place(server) }
+    log::debug!("Server dropped")
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub unsafe extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendRole(
+pub extern "system" fn Java_com_dinaraparanid_tictactoe_native_1libs_ServerNative_sendRole(
     env: *mut JNIEnv,
     _class: jobject,
     pointer_buffer: jobject,
     client_player_role: jbyte,
 ) {
     Server::send_role(
-        &mut (*get_server_pointer(env, pointer_buffer))
-            .get_current_stream_mut()
-            .as_mut()
-            .unwrap_unchecked(),
+        unsafe {
+            get_struct::<Server>(env, pointer_buffer)
+                .unwrap_unchecked()
+                .get_current_stream_mut()
+                .as_mut()
+                .unwrap()
+        },
         client_player_role as u8,
     )
 }

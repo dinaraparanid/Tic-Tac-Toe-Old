@@ -7,8 +7,10 @@ use std::io::Result;
 pub(crate) type TcpIOResult<T> = std::result::Result<T, ()>;
 
 #[inline]
-pub(crate) unsafe fn get_pointer<T>(env: *mut JNIEnv, pointer_buffer: jobject) -> *mut T {
-    (**env).GetDirectBufferAddress.unwrap_unchecked()(env, pointer_buffer) as *mut T
+pub(crate) fn get_struct<'a, T>(env: *mut JNIEnv, pointer_buffer: jobject) -> Option<&'a mut T> {
+    unsafe {
+        ((**env).GetDirectBufferAddress.unwrap_unchecked()(env, pointer_buffer) as *mut T).as_mut()
+    }
 }
 
 #[inline]

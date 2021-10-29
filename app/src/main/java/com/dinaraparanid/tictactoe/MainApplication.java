@@ -4,6 +4,7 @@ import android.app.Application;
 import android.content.ComponentName;
 import android.content.ServiceConnection;
 import android.os.IBinder;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -30,10 +31,14 @@ public final class MainApplication extends Application {
         public final void onServiceConnected(
                 @NonNull final ComponentName name,
                 @NonNull final IBinder service
-        ) { serviceBound = true; }
+        ) {
+            Log.d("Server", "Server connected");
+            serviceBound = true;
+        }
 
         @Override
         public final void onServiceDisconnected(@NonNull final ComponentName name) {
+            Log.d("Server", "Service disconnected");
             serviceBound = false;
         }
     };
