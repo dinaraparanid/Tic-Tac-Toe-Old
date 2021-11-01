@@ -7,7 +7,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
-import com.dinaraparanid.tictactoe.native_libs.ClientPlayerNative;
+import com.dinaraparanid.tictactoe.nativelibs.ClientPlayerNative;
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 
@@ -151,8 +151,10 @@ public final class ClientPlayer extends Player {
                 public final void run() {
                     Log.d(TAG, "Game Finished");
                     isPlaying.set(false);
+                    gameFragment.get().gameFinished(
+                            Server.GameState.values()[clientPlayerNative.readState()]
+                    );
                     clientPlayerNative.drop();
-                    gameFragment.get().gameFinished();
                 }
             });
         }

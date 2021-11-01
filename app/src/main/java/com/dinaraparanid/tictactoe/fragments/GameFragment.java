@@ -12,7 +12,9 @@ import androidx.databinding.DataBindingUtil;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.dinaraparanid.tictactoe.BR;
+import com.dinaraparanid.tictactoe.ClientPlayer;
 import com.dinaraparanid.tictactoe.R;
+import com.dinaraparanid.tictactoe.Server;
 import com.dinaraparanid.tictactoe.databinding.FragmentGameBinding;
 import com.dinaraparanid.tictactoe.utils.polymorphism.DataBindingFragment;
 import com.dinaraparanid.tictactoe.utils.polymorphism.Player;
@@ -122,7 +124,25 @@ public final class GameFragment extends DataBindingFragment<FragmentGameBinding>
         );
     }
 
-    public final void gameFinished() {
+    public final void gameFinished(@NonNull final Server.GameState state) {
+        final boolean isClient = player instanceof ClientPlayer;
+        final int role = player.getRole();
+        final int f = role == 0 ? R.string.cross_won : R.string.zero_won;
+        final int s = role == 0 ? R.string.zero_won : R.string.cross_won;
+
+        requireActivity().runOnUiThread(() -> new AlertDialog.Builder(requireActivity())
+                .setTitle(R.string.results)
+                .setMessage(
+                        state == Server.GameState.CONTINUE ?
+                                R.string.draw :
+                                state == Server.GameState.CLIENT_VICTORY && isClient ?
+                                        f : state == Server.GameState.CLIENT_VICTORY && !isClient ?
+                                        s : isClient ? s : f
+                )
+                .setCancelable(true)
+                .setPositiveButton(R.string.ok, (dialog, which) -> dialog.dismiss())
+                .show());
+
         requireActivity().getSupportFragmentManager().popBackStack();
     }
 }

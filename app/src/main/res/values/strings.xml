@@ -15,4 +15,8 @@
     <string name="your_ip">Your IP</string>
     <string name="host_ip">Host\'s IP</string>
     <string name="invalid_ip">Invalid ip. Try again</string>
+    <string name="results">Results</string>
+    <string name="draw">Draw</string>
+    <string name="zero_won">Zero won</string>
+    <string name="cross_won">Cross won</string>
 </resources>

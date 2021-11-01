@@ -159,7 +159,12 @@ public final class ServerPlayer extends Player {
             if (intent.getAction().equals(Server.BROADCAST_GAME_FINISHED)) {
                 Log.d(TAG, "Game finished");
                 isPlaying.set(false);
-                gameFragment.get().gameFinished();
+                gameFragment.get().gameFinished(
+                        Server.GameState.values()[intent.getIntExtra(
+                                Server.BROADCAST_ENDING_STATE,
+                                0
+                        )]
+                );
                 unregisterReceivers();
             }
         }

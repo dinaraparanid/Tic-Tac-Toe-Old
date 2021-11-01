@@ -16,7 +16,7 @@ import androidx.annotation.Nullable;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.dinaraparanid.tictactoe.ServerPlayer;
-import com.dinaraparanid.tictactoe.native_libs.ServerNative;
+import com.dinaraparanid.tictactoe.nativelibs.ServerNative;
 import com.dinaraparanid.tictactoe.utils.Coordinate;
 import com.dinaraparanid.tictactoe.utils.polymorphism.State;
 
@@ -24,6 +24,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NonNls;
 
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +37,9 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class Server extends Service {
+
+    /** Game states after a correct move */
+    public enum GameState { CONTINUE, SERVER_VICTORY, CLIENT_VICTORY }
 
     @NonNls
     @NonNull
@@ -74,10 +78,6 @@ public final class Server extends Service {
     @NonNull
     static final String BROADCAST_SERVER_PLAYER_DISCONNECTED = "server_player_disconnected";
 
-    @NonNls
-    @NonNull
-    static final String BROADCAST_KILL = "kill";
-
     // -------------------------------- Send broadcasts --------------------------------
 
     @NonNls
@@ -111,6 +111,10 @@ public final class Server extends Service {
     @NonNls
     @NonNull
     static final String BROADCAST_INVALID_MOVE = "invalid_move";
+
+    @NonNls
+    @NonNull
+    static final String BROADCAST_ENDING_STATE = "ending_state";
 
     @NonNls
     @NonNull
@@ -208,6 +212,18 @@ public final class Server extends Service {
                     gameTable[coordinate.getY()][coordinate.getX()] = 1;
 
                     executor.execute(() -> {
+                        final GameState gs = getGameState();
+
+                        if (gs != GameState.CONTINUE) {
+                            try {
+                                sendGameFinished(gs);
+                            } catch (final ExecutionException | InterruptedException e) {
+                                e.printStackTrace();
+                            }
+
+                            return;
+                        }
+
                         try { sendCorrectMove(); }
                         catch (ExecutionException | InterruptedException ignored) {}
 
@@ -224,7 +240,7 @@ public final class Server extends Service {
 
                         if (isFilled) {
                             isGameEnded.set(true);
-                            try { sendGameFinished(); }
+                            try { sendGameFinished(GameState.CONTINUE); }
                             catch (final ExecutionException | InterruptedException ignored) {}
                         }
                     });
@@ -277,6 +293,18 @@ public final class Server extends Service {
                 if (isMoveCorrect(y, x)) {
                     gameTable[y][x] = 2;
 
+                    final GameState gs = getGameState();
+
+                    if (gs != GameState.CONTINUE) {
+                        try {
+                            sendGameFinished(gs);
+                        } catch (final ExecutionException | InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
+                        return;
+                    }
+
                     try {
                         sendCorrectMove();
                     } catch (final ExecutionException | InterruptedException e) {
@@ -298,7 +326,7 @@ public final class Server extends Service {
                         isGameEnded.set(true);
 
                         try {
-                            sendGameFinished();
+                            sendGameFinished(GameState.CONTINUE);
                         } catch (final ExecutionException | InterruptedException e) {
                             e.printStackTrace();
                         }
@@ -430,6 +458,38 @@ public final class Server extends Service {
         return gameTable[y][x] == 0;
     }
 
+    protected final GameState getGameState() {
+        final byte[][] rows = new byte[8][3];
+
+        // vertical
+        System.arraycopy(gameTable, 0, rows, 0, 3);
+
+        // diagonal
+        for (int i = 0; i < 3; i++) {
+            rows[3][i] = gameTable[i][i];
+            rows[4][i] = gameTable[i][2 - i];
+        }
+
+        // horizontal
+        for (int i = 0; i < 3; i++)
+            for (int q = 0; q < 3; q++)
+                rows[5 + i][q] = gameTable[q][i];
+
+        // Fucking Java 7, there are no streams...
+
+        final byte[] serverVic = { 1, 1, 1 };
+        final byte[] clientVic = { 2, 2, 2 };
+
+        for (final byte[] row : rows) {
+            if (Arrays.equals(serverVic, row))
+                return GameState.SERVER_VICTORY;
+            if (Arrays.equals(clientVic, row))
+                return GameState.CLIENT_VICTORY;
+        }
+
+        return GameState.CONTINUE;
+    }
+
     protected final void sendIp(@NonNull final String ip) {
         Log.d(TAG, "Send IP");
 
@@ -492,14 +552,17 @@ public final class Server extends Service {
         executor.submit(serverNative::sendInvalidMove).get();
     }
 
-    protected void sendGameFinished()
+    protected void sendGameFinished(@NonNull final GameState state)
             throws ExecutionException, InterruptedException {
         Log.d(TAG, "Game finished");
 
+        final Intent finishIntent = new Intent(BROADCAST_GAME_FINISHED);
+        finishIntent.putExtra(BROADCAST_ENDING_STATE, state.ordinal());
+
         LocalBroadcastManager
                 .getInstance(getApplicationContext())
-                .sendBroadcast(new Intent(BROADCAST_GAME_FINISHED));
+                .sendBroadcast(finishIntent);
 
-        executor.submit(serverNative::sendGameFinished).get();
+        executor.submit(() -> serverNative.sendGameFinished((byte) state.ordinal())).get();
     }
 }
