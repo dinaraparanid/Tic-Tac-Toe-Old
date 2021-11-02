@@ -171,7 +171,7 @@ pub extern "system" fn Java_com_dinaraparanid_tictactoe_nativelibs_ClientPlayerN
         get_struct_mut::<ClientPlayer>(env, pointer_buffer)
             .unwrap_unchecked()
             .read_state()
-            .unwrap() as jbyte
+            .unwrap_or(3) as jbyte
     }
 }
 
